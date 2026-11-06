@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Структурное программирование — по шагам</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo">&lt;/&gt;</span>
+    <div>
+      <h1>Структурное программирование — по шагам</h1>
+      <p>24 проекта · PHP, C#, C++ · один <code>return</code>, без <code>continue</code>, микрофункции</p>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-mode="opz" role="tab">ОПЗ-калькулятор</button>
+    <button class="tab" data-mode="sorts" role="tab">Сортировки</button>
+    <button class="tab" data-mode="catalog" role="tab">24 проекта</button>
+    <button class="tab" data-mode="kids" role="tab">Новичкам</button>
+    <button class="tab" data-mode="games" role="tab">Игры</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ================= ОПЗ ================= -->
+  <section class="mode active" id="mode-opz">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Выражение → ОПЗ → результат</h2>
+        <p>Те же функции, что в <code>cpp/03_rpn_calc</code>: <code>tokenize</code>, <code>convert_all</code>,
+          <code>evaluate_rpn</code>. Каждый шаг показывает, кто его сделал.</p>
+      </div>
+      <div class="controls">
+        <input id="opz-input" class="expr" value="(1240+8940)*2-1500/3" spellcheck="false" aria-label="Выражение">
+        <button id="opz-play" class="primary">Пуск</button>
+        <button id="opz-step">Шаг</button>
+        <button id="opz-reset">Сброс</button>
+        <label class="speed">Скорость
+          <input id="opz-speed" type="range" min="1" max="10" value="6">
+        </label>
+      </div>
+      <p id="opz-error" class="error" hidden></p>
+
+      <div class="stage">
+        <div class="lane">
+          <h3>Токены</h3>
+          <div id="opz-tokens" class="chips"></div>
+        </div>
+        <div class="lane two">
+          <div>
+            <h3>Стек операторов</h3>
+            <div id="opz-stack" class="stack"></div>
+          </div>
+          <div>
+            <h3>ОПЗ на выходе</h3>
+            <div id="opz-out" class="chips queue"></div>
+          </div>
+          <div>
+            <h3>Стек вычисления</h3>
+            <div id="opz-eval" class="stack"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callchain">
+        <span class="label">Сейчас работает:</span>
+        <span id="opz-fn" class="fn">—</span>
+        <span id="opz-note" class="note"></span>
+      </div>
+      <div class="progress"><div id="opz-bar" class="bar"></div></div>
+      <p id="opz-result" class="result"></p>
+      <div class="legend">
+        <span><b>Шаг</b> — один вызов микрофункции. Правило: у функции один выход, поэтому шаг всегда
+          заканчивается одним <code>return</code>.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Сортировки ================= -->
+  <section class="mode" id="mode-sorts">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Три сортировки, три декомпозиции</h2>
+        <p>Массив маленький, чтобы был виден каждый шаг. Имена функций — из C++-версии
+          <code>cpp/06_sort_bench</code>, в PHP и C# они те же по смыслу.</p>
+      </div>
+      <div class="controls">
+        <div class="algo-switch" id="sort-algos">
+          <button class="chip-btn active" data-algo="insertion">вставки</button>
+          <button class="chip-btn" data-algo="merge">слияние</button>
+          <button class="chip-btn" data-algo="quick">быстрая</button>
+        </div>
+        <button id="sort-random">Другой массив</button>
+        <button id="sort-play" class="primary">Пуск</button>
+        <button id="sort-step">Шаг</button>
+        <button id="sort-reset">Сброс</button>
+      </div>
+      <div id="sort-bars" class="bars" aria-label="Массив"></div>
+      <div class="callchain">
+        <span class="label">Функция:</span>
+        <span id="sort-fn" class="fn">—</span>
+        <span id="sort-note" class="note"></span>
+      </div>
+      <p id="sort-status" class="result"></p>
+      <div class="legend">
+        <span><b>Синий</b> — сравниваем, <b>оранжевый</b> — переставляем, <b>зелёный</b> — на своём месте.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Каталог ================= -->
+  <section class="mode" id="mode-catalog">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>24 проекта: как разложена задача</h2>
+        <p>Карта функций из исходников (статический разбор). Выбери проект — увидишь, на какие шаги
+          разбита задача и какого размера каждый шаг.</p>
+      </div>
+      <div class="controls">
+        <div class="algo-switch" id="cat-lang">
+          <button class="chip-btn active" data-lang="cpp">C++</button>
+          <button class="chip-btn" data-lang="csharp">C#</button>
+          <button class="chip-btn" data-lang="php">PHP</button>
+        </div>
+        <input id="cat-search" class="expr narrow" placeholder="поиск по проекту или функции" spellcheck="false">
+        <span id="cat-count" class="note"></span>
+      </div>
+      <div class="grid" id="cat-grid"></div>
+      <div id="cat-detail" class="detail" hidden></div>
+    </div>
+  </section>
+
+  <!-- ================= Новичкам ================= -->
+  <section class="mode" id="mode-kids">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Первые шаги: что делает функция</h2>
+        <p>Восемь коротких вопросов. Никакого кода — только имя функции и два варианта ответа.</p>
+      </div>
+      <div class="kid-card">
+        <p class="kid-step" id="kid-step">Вопрос 1 из 8</p>
+        <h3 class="kid-q" id="kid-q">—</h3>
+        <p class="kid-code" id="kid-code"></p>
+        <div class="kid-answers" id="kid-answers"></div>
+        <p class="kid-feedback" id="kid-feedback"></p>
+        <div class="controls">
+          <button id="kid-next" class="primary" disabled>Дальше</button>
+          <button id="kid-restart">Сначала</button>
+        </div>
+        <div class="progress"><div id="kid-bar" class="bar"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Игры ================= -->
+  <section class="mode" id="mode-games">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Четыре мини-игры</h2>
+        <p>Проверка понимания: порядок ОПЗ, следующая функция, нарушение стиля, назначение функции.</p>
+      </div>
+
+      <div class="game">
+        <h3>1. Собери ОПЗ</h3>
+        <p id="g1-task" class="note"></p>
+        <div class="chips" id="g1-source"></div>
+        <div class="chips queue" id="g1-built"></div>
+        <div class="controls">
+          <button id="g1-check" class="primary">Проверить</button>
+          <button id="g1-reset">Заново</button>
+          <span id="g1-status" class="note"></span>
+        </div>
+      </div>
+
+      <div class="game">
+        <h3>2. Какая функция вызовется следующей</h3>
+        <p id="g2-task" class="note"></p>
+        <div class="chips" id="g2-options"></div>
+        <p id="g2-status" class="note"></p>
+      </div>
+
+      <div class="game">
+        <h3>3. Найди нарушение стиля</h3>
+        <p class="note">В отрывке спрятан <code>continue</code>, <code>break</code> в цикле или второй
+          <code>return</code>. Нажми на строку.</p>
+        <pre id="g3-code" class="code"></pre>
+        <p id="g3-status" class="note"></p>
+      </div>
+
+      <div class="game">
+        <h3>4. Что делает эта функция</h3>
+        <p id="g4-task" class="note"></p>
+        <div class="chips" id="g4-options"></div>
+        <p id="g4-status" class="note"></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>Карта функций строится скриптом <code>tools/build_explainer.py</code> прямо из исходников.</span>
+  <a href="https://github.com/kepanasyuke/structured-programming-labs">репозиторий</a>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
