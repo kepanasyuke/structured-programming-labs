@@ -15,107 +15,116 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        string path = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "../../../../data/balance.csv");
+        string path = ResolvePath(args);
+        bool loaded = TryReadSeries(path, out List<SeriesPoint> series);
+        bool printed = loaded && series.Count >= WindowSize && PrintReport(path, series);
 
-        if (!TryReadSeries(path, out List<SeriesPoint> series))
+        PrintReadError(path, loaded);
+        PrintSizeError(loaded && series.Count < WindowSize);
+
+        return printed ? 0 : 1;
+    }
+
+    private static string ResolvePath(string[] args) =>
+        args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "../../../../data/balance.csv");
+
+    private static void PrintReadError(string path, bool loaded)
+    {
+        if (!loaded)
         {
             Console.Error.WriteLine($"Ошибка: не удалось прочитать данные из {path}");
-            return 1;
         }
+    }
 
-        if (series.Count < WindowSize)
+    private static void PrintSizeError(bool tooShort)
+    {
+        if (tooShort)
         {
             Console.Error.WriteLine($"Ошибка: для сглаживания нужно минимум {WindowSize} точки");
-            return 1;
         }
-
-        double[] values = series.Select(point => point.Value).ToArray();
-        double[] averages = MovingAverage(values, WindowSize);
-        Dictionary<int, double> outliers = FindOutliers(values, ZThreshold);
-
-        PrintSeries(series, values, averages, outliers);
-
-        return 0;
     }
+
+    private static bool PrintReport(string path, List<SeriesPoint> series)
+    {
+        double[] values = Values(series);
+        double[] averages = MovingAverage(values, WindowSize);
+
+        PrintSeries(series, values, averages, FindOutliers(values, ZThreshold));
+
+        return true;
+    }
+
+    private static double[] Values(List<SeriesPoint> series) => series.Select(point => point.Value).ToArray();
 
     private static bool TryReadSeries(string path, out List<SeriesPoint> series)
     {
-        series = new List<SeriesPoint>();
+        string[] lines = File.Exists(path) ? File.ReadAllLines(path) : Array.Empty<string>();
 
-        if (!File.Exists(path))
-        {
-            return false;
-        }
-
-        string[] lines = File.ReadAllLines(path);
-
-        foreach (string line in lines.Skip(1))
-        {
-            SeriesPoint? point = ParsePoint(line);
-            if (point.HasValue)
-            {
-                series.Add(point.Value);
-            }
-        }
+        series = CollectPoints(lines.Skip(1));
 
         return series.Count > 0;
     }
 
-    private static SeriesPoint? ParsePoint(string line)
+    private static List<SeriesPoint> CollectPoints(IEnumerable<string> lines)
     {
-        SeriesPoint? point = null;
+        List<SeriesPoint> series = new();
 
-        if (line.Trim().Length > 0)
+        foreach (string line in lines)
         {
-            string[] parts = line.Split(Delimiter);
-
-            if (parts.Length >= 2 && TryParseValue(parts[1], out double value))
-            {
-                point = new SeriesPoint(parts[0].Trim(), value);
-            }
+            AddPoint(series, ParsePoint(line));
         }
 
-        return point;
+        return series;
     }
+
+    private static void AddPoint(List<SeriesPoint> series, SeriesPoint? point)
+    {
+        if (point.HasValue)
+        {
+            series.Add(point.Value);
+        }
+    }
+
+    private static SeriesPoint? ParsePoint(string line) => NonBlank(line) ? ReadPoint(line.Split(Delimiter)) : null;
+
+    private static SeriesPoint? ReadPoint(string[] parts) => HasValueAt(parts, 1) ? BuildPoint(parts[0].Trim(), parts[1]) : null;
+
+    private static bool HasValueAt(string[] parts, int index) => parts.Length > index;
+
+    private static SeriesPoint? BuildPoint(string period, string raw) => TryParseValue(raw, out double value) ? new SeriesPoint(period, value) : null;
+
+    private static bool NonBlank(string line) => line.Trim().Length > 0;
 
     private static bool TryParseValue(string raw, out double value) =>
         double.TryParse(raw.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
 
-    private static double[] MovingAverage(double[] values, int window)
+    private static double[] MovingAverage(double[] values, int window) => FillAverages(values, window, 0, new double[values.Length]);
+
+    private static double[] FillAverages(double[] values, int window, int index, double[] result)
     {
-        double[] result = new double[values.Length];
+        double[] filled = result;
 
-        for (int i = 0; i < values.Length; i++)
+        if (index < values.Length)
         {
-            int from = Math.Max(0, i - window + 1);
-            int size = i - from + 1;
-            double sum = 0;
+            int from = Math.Max(0, index - window + 1);
 
-            for (int j = from; j <= i; j++)
-            {
-                sum += values[j];
-            }
-
-            result[i] = sum / size;
+            result[index] = SumRange(values, from, index) / (index - from + 1);
+            filled = FillAverages(values, window, index + 1, result);
         }
 
-        return result;
+        return filled;
     }
+
+    private static double SumRange(double[] values, int from, int to) => from > to ? 0 : values[from] + SumRange(values, from + 1, to);
 
     private static double Mean(double[] values) => values.Length == 0 ? 0 : values.Average();
 
-    private static double StandardDeviation(double[] values)
-    {
-        if (values.Length < 2)
-        {
-            return 0;
-        }
+    private static double StandardDeviation(double[] values) => values.Length < 2 ? 0 : Deviation(values, Mean(values));
 
-        double average = Mean(values);
-        double sumOfSquares = values.Sum(value => Math.Pow(value - average, 2));
+    private static double Deviation(double[] values, double average) => Math.Sqrt(SquaredDeviation(values, average, 0) / (values.Length - 1));
 
-        return Math.Sqrt(sumOfSquares / (values.Length - 1));
-    }
+    private static double SquaredDeviation(double[] values, double average, int index) =>
+        index >= values.Length ? 0 : Math.Pow(values[index] - average, 2) + SquaredDeviation(values, average, index + 1);
 
     private static double ZScore(double value, double average, double deviation) =>
         deviation == 0 ? 0 : (value - average) / deviation;
@@ -126,17 +135,24 @@ internal static class Program
         double deviation = StandardDeviation(values);
         Dictionary<int, double> outliers = new();
 
-        for (int i = 0; i < values.Length; i++)
+        CollectOutliers(values, average, deviation, threshold, 0, outliers);
+
+        return outliers;
+    }
+
+    private static void CollectOutliers(double[] values, double average, double deviation, double threshold, int index, Dictionary<int, double> outliers)
+    {
+        if (index < values.Length)
         {
-            double score = ZScore(values[i], average, deviation);
+            double score = ZScore(values[index], average, deviation);
 
             if (Math.Abs(score) > threshold)
             {
-                outliers[i] = score;
+                outliers[index] = score;
             }
-        }
 
-        return outliers;
+            CollectOutliers(values, average, deviation, threshold, index + 1, outliers);
+        }
     }
 
     private static string BuildBar(double value, double maximum) =>
@@ -145,25 +161,43 @@ internal static class Program
     private static void PrintSeries(List<SeriesPoint> series, double[] values, double[] averages, Dictionary<int, double> outliers)
     {
         double maximum = values.Max();
-        double averageAll = Mean(values);
+        double average = Mean(values);
         double deviation = StandardDeviation(values);
 
-        Console.WriteLine($"Окно сглаживания: {WindowSize}, порог z-score: {ZThreshold.ToString("F1", CultureInfo.InvariantCulture)}");
+        PrintHeader();
+        PrintRows(series, values, averages, outliers, new double[] { maximum, average, deviation });
+        PrintFooter(outliers.Count);
+    }
+
+    private static void PrintHeader()
+    {
+        Console.WriteLine($"Окно сглаживания: {WindowSize}, порог z-score: {Format(ZThreshold)}");
         Console.WriteLine();
         Console.WriteLine($"{"ПЕРИОД",-12} {"ЗНАЧЕНИЕ",12} {"СРЕДНЕЕ",12} {"Z",8} {"ДИНАМИКА",-26}");
         Console.WriteLine(new string('-', 74));
+    }
 
+    private static string Format(double value) => value.ToString("F1", CultureInfo.InvariantCulture);
+
+    private static void PrintRows(List<SeriesPoint> series, double[] values, double[] averages, Dictionary<int, double> outliers, double[] stats)
+    {
         for (int i = 0; i < series.Count; i++)
         {
-            double score = ZScore(values[i], averageAll, deviation);
-            string mark = outliers.ContainsKey(i) ? "  <-- ВЫБРОС" : string.Empty;
-
-            Console.WriteLine(
-                $"{series[i].Period,-12} {values[i],12:F0} {averages[i],12:F0} {score,8:F2} {BuildBar(values[i], maximum),-26}{mark}");
+            Console.WriteLine(FormatRow(series[i], values[i], averages[i], ZScore(values[i], stats[1], stats[2]), outliers, i, stats[0]));
         }
+    }
 
+    private static string FormatRow(SeriesPoint point, double value, double average, double score, Dictionary<int, double> outliers, int index, double maximum)
+    {
+        string mark = outliers.ContainsKey(index) ? "  <-- ВЫБРОС" : string.Empty;
+
+        return $"{point.Period,-12} {value,12:F0} {average,12:F0} {score,8:F2} {BuildBar(value, maximum),-26}{mark}";
+    }
+
+    private static void PrintFooter(int outlierCount)
+    {
         Console.WriteLine();
-        Console.WriteLine($"Выбросов найдено: {outliers.Count}");
+        Console.WriteLine($"Выбросов найдено: {outlierCount}");
     }
 
     private readonly record struct SeriesPoint(string Period, double Value);

@@ -7,44 +7,46 @@ namespace RpnCalc;
 
 internal static class Program
 {
-    private static readonly Dictionary<string, int> Precedence = new()
-    {
-        ["+"] = 1,
-        ["-"] = 1,
-        ["*"] = 2,
-        ["/"] = 2,
-    };
+    private static readonly Dictionary<string, int> Precedence = Weight("*", 2, Weight("/", 2, Weight("+", 1, Weight("-", 1, new Dictionary<string, int>()))));
 
     private static readonly Regex TokenPattern = new(@"\d+[.,]?\d*|[+\-*/()]", RegexOptions.Compiled);
 
     private static int Main(string[] args)
     {
         string expression = args.Length > 0 ? args[0] : "(1240+8940)*2-1500/3";
+        bool converted = TryToRpn(Tokenize(expression), out List<string> rpn, out string error);
+        bool evaluated = converted && TryEvaluate(rpn, out double value, out error);
+        bool printed = evaluated && PrintResult(expression, rpn, value);
 
-        if (!TryToRpn(Tokenize(expression), out List<string> rpn, out string error))
-        {
-            Console.Error.WriteLine($"Ошибка: {error}");
-            return 1;
-        }
+        PrintError(converted, evaluated, error);
 
-        if (!TryEvaluate(rpn, out double value, out error))
-        {
-            Console.Error.WriteLine($"Ошибка: {error}");
-            return 1;
-        }
-
-        PrintResult(expression, rpn, value);
-
-        return 0;
+        return printed ? 0 : 1;
     }
 
-    private static List<string> Tokenize(string expression)
+    private static Dictionary<string, int> Weight(string token, int value, Dictionary<string, int> table)
+    {
+        table[token] = value;
+
+        return table;
+    }
+
+    private static void PrintError(bool converted, bool evaluated, string error)
+    {
+        if (!converted || !evaluated)
+        {
+            Console.Error.WriteLine($"Ошибка: {error}");
+        }
+    }
+
+    private static List<string> Tokenize(string expression) => CollectTokens(TokenPattern.Matches(expression.Replace(" ", string.Empty)), 0);
+
+    private static List<string> CollectTokens(MatchCollection matches, int index)
     {
         List<string> tokens = new();
 
-        foreach (Match match in TokenPattern.Matches(expression.Replace(" ", string.Empty)))
+        for (int i = index; i < matches.Count; i++)
         {
-            tokens.Add(match.Value);
+            tokens.Add(matches[i].Value);
         }
 
         return tokens;
@@ -52,50 +54,63 @@ internal static class Program
 
     private static bool IsNumber(string token) => double.TryParse(token.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out _);
 
+    private static double ToDouble(string token) => double.Parse(token.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture);
+
     private static bool TryToRpn(List<string> tokens, out List<string> rpn, out string error)
     {
         rpn = new List<string>();
-        Stack<string> stack = new();
         error = string.Empty;
-        bool balanced = true;
 
-        foreach (string token in tokens)
+        return TryToRpnAt(tokens, 0, new Stack<string>(), rpn, new string[] { string.Empty });
+    }
+
+    private static bool TryToRpnAt(List<string> tokens, int index, Stack<string> stack, List<string> rpn, string[] error)
+    {
+        bool valid = index < tokens.Count || FlushStack(stack, rpn, error);
+
+        if (index < tokens.Count)
         {
-            if (!balanced)
-            {
-                break;
-            }
-
-            if (IsNumber(token))
-            {
-                rpn.Add(token);
-            }
-            else if (token == "(")
-            {
-                stack.Push(token);
-            }
-            else if (token == ")")
-            {
-                balanced = PopUntilBracket(stack, rpn);
-            }
-            else if (Precedence.ContainsKey(token))
-            {
-                PushOperator(token, stack, rpn);
-            }
-            else
-            {
-                error = $"неизвестный токен: {token}";
-                balanced = false;
-            }
+            valid = IsTokenAccepted(tokens[index], stack, rpn, error) && TryToRpnAt(tokens, index + 1, stack, rpn, error);
         }
 
-        if (balanced && !FlushStack(stack, rpn))
-        {
-            error = "несбалансированные скобки";
-            balanced = false;
-        }
+        return valid;
+    }
 
-        return balanced;
+    private static bool IsTokenAccepted(string token, Stack<string> stack, List<string> rpn, string[] error) =>
+        IsNumber(token) ? AcceptNumber(token, rpn) : IsBracketOpen(token) ? AcceptOpen(token, stack) : IsBracketClose(token) ? PopUntilBracket(stack, rpn) : IsOperator(token) ? AcceptOperator(token, stack, rpn) : Reject(token, error);
+
+    private static bool AcceptNumber(string token, List<string> rpn)
+    {
+        rpn.Add(token);
+
+        return true;
+    }
+
+    private static bool AcceptOpen(string token, Stack<string> stack)
+    {
+        stack.Push(token);
+
+        return true;
+    }
+
+    private static bool IsBracketOpen(string token) => token == "(";
+
+    private static bool IsBracketClose(string token) => token == ")";
+
+    private static bool IsOperator(string token) => Precedence.ContainsKey(token);
+
+    private static bool AcceptOperator(string token, Stack<string> stack, List<string> rpn)
+    {
+        PushOperator(token, stack, rpn);
+
+        return true;
+    }
+
+    private static bool Reject(string token, string[] error)
+    {
+        error[0] = $"неизвестный токен: {token}";
+
+        return false;
     }
 
     private static bool PopUntilBracket(Stack<string> stack, List<string> rpn)
@@ -104,134 +119,157 @@ internal static class Program
 
         while (stack.Count > 0 && !found)
         {
-            string top = stack.Pop();
-            if (top == "(")
-            {
-                found = true;
-            }
-            else
-            {
-                rpn.Add(top);
-            }
+            found = PopOne(stack, rpn);
         }
 
         return found;
     }
 
+    private static bool PopOne(Stack<string> stack, List<string> rpn)
+    {
+        string top = stack.Pop();
+        bool isBracket = top == "(";
+
+        if (!isBracket)
+        {
+            rpn.Add(top);
+        }
+
+        return isBracket;
+    }
+
+    private static bool IsReady(Stack<string> stack, string token) =>
+        stack.Count == 0 || stack.Peek() == "(" || Precedence[stack.Peek()] < Precedence[token];
+
     private static void PushOperator(string token, Stack<string> stack, List<string> rpn)
     {
-        bool ready = stack.Count == 0 || stack.Peek() == "(" || Precedence[stack.Peek()] < Precedence[token];
-
-        while (!ready)
+        while (!IsReady(stack, token))
         {
             rpn.Add(stack.Pop());
-            ready = stack.Count == 0 || stack.Peek() == "(" || Precedence[stack.Peek()] < Precedence[token];
         }
 
         stack.Push(token);
     }
 
-    private static bool FlushStack(Stack<string> stack, List<string> rpn)
+    private static bool FlushStack(Stack<string> stack, List<string> rpn, string[] error)
     {
         bool valid = true;
 
         while (stack.Count > 0)
         {
-            string top = stack.Pop();
-            if (top == "(")
-            {
-                valid = false;
-            }
-            else
-            {
-                rpn.Add(top);
-            }
+            valid = DrainOne(stack, rpn) && valid;
         }
 
+        error[0] = valid ? error[0] : "несбалансированные скобки";
+
         return valid;
+    }
+
+    private static bool DrainOne(Stack<string> stack, List<string> rpn)
+    {
+        string top = stack.Pop();
+        bool isBracket = top == "(";
+
+        if (!isBracket)
+        {
+            rpn.Add(top);
+        }
+
+        return !isBracket;
     }
 
     private static bool TryEvaluate(List<string> rpn, out double value, out string error)
     {
         Stack<double> stack = new();
-        value = 0;
-        error = string.Empty;
-        bool valid = true;
+        string[] box = { string.Empty };
+        bool valid = EvaluateAt(rpn, 0, stack, box);
 
-        foreach (string token in rpn)
-        {
-            if (!valid)
-            {
-                break;
-            }
-
-            if (IsNumber(token))
-            {
-                stack.Push(double.Parse(token.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture));
-            }
-            else if (stack.Count < 2)
-            {
-                error = $"недостаточно операндов для оператора {token}";
-                valid = false;
-            }
-            else
-            {
-                valid = TryApply(token, stack, out error);
-            }
-        }
-
-        if (valid && stack.Count != 1)
-        {
-            error = "выражение разобрано не полностью";
-            valid = false;
-        }
-
-        if (valid)
-        {
-            value = stack.Pop();
-        }
+        value = valid ? stack.Pop() : 0;
+        error = box[0];
 
         return valid;
+    }
+
+    private static bool EvaluateAt(List<string> rpn, int index, Stack<double> stack, string[] error)
+    {
+        bool valid = true;
+
+        if (index < rpn.Count)
+        {
+            valid = ApplyToken(rpn[index], stack, error) && EvaluateAt(rpn, index + 1, stack, error);
+        }
+
+        return valid && IsSingleResult(stack, error);
+    }
+
+    private static bool IsSingleResult(Stack<double> stack, string[] error)
+    {
+        bool single = stack.Count == 1;
+
+        error[0] = single ? error[0] : "выражение разобрано не полностью";
+
+        return single;
+    }
+
+    private static bool ApplyToken(string token, Stack<double> stack, string[] error) =>
+        IsNumber(token) ? PushValue(token, stack) : HasTwoOperands(stack) ? TryApply(token, stack, error) : RejectOperand(token, error);
+
+    private static bool PushValue(string token, Stack<double> stack)
+    {
+        stack.Push(ToDouble(token));
+
+        return true;
+    }
+
+    private static bool HasTwoOperands(Stack<double> stack) => stack.Count >= 2;
+
+    private static bool RejectOperand(string token, string[] error)
+    {
+        error[0] = $"недостаточно операндов для оператора {token}";
+
+        return false;
     }
 
     private static bool TryApply(string token, Stack<double> stack, out string error)
     {
-        error = string.Empty;
+        string[] box = { string.Empty };
         double right = stack.Pop();
         double left = stack.Pop();
-        bool valid = true;
+        bool valid = ApplyOperator(token, left, right, stack, box);
 
-        switch (token)
-        {
-            case "+":
-                stack.Push(left + right);
-                break;
-            case "-":
-                stack.Push(left - right);
-                break;
-            case "*":
-                stack.Push(left * right);
-                break;
-            case "/" when right != 0:
-                stack.Push(left / right);
-                break;
-            case "/":
-                error = "деление на ноль";
-                valid = false;
-                break;
-            default:
-                error = $"неизвестный оператор: {token}";
-                valid = false;
-                break;
-        }
+        error = box[0];
 
         return valid;
     }
 
-    private static void PrintResult(string expression, List<string> rpn, double value)
+    private static bool ApplyOperator(string token, double left, double right, Stack<double> stack, string[] error) =>
+        token == "+" ? PushResult(left + right, stack) : token == "-" ? PushResult(left - right, stack) : token == "*" ? PushResult(left * right, stack) : ApplyDivision(left, right, stack, error);
+
+    private static bool ApplyDivision(double left, double right, Stack<double> stack, string[] error) =>
+        right != 0 ? PushResult(left / right, stack) : ReportDivisionError(error);
+
+    private static bool PushResult(double value, Stack<double> stack)
+    {
+        stack.Push(value);
+
+        return true;
+    }
+
+    private static bool ReportDivisionError(string[] error)
+    {
+        error[0] = "деление на ноль";
+
+        return false;
+    }
+
+    private static bool PrintResult(string expression, List<string> rpn, double value)
     {
         Console.WriteLine($"Выражение: {expression}");
         Console.WriteLine($"ОПЗ: {string.Join(' ', rpn)}");
-        Console.WriteLine($"Результат: {value.ToString("0.######", CultureInfo.InvariantCulture)}");
+        Console.WriteLine($"Результат: {FormatValue(value)}");
+
+        return true;
     }
+
+    private static string FormatValue(double value) => value.ToString("0.######", CultureInfo.InvariantCulture);
 }

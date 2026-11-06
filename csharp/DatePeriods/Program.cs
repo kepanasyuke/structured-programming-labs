@@ -12,36 +12,76 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        string fromText = args.Length > 0 ? args[0] : "2025-11-15";
-        string toText = args.Length > 1 ? args[1] : "2026-06-30";
-        string granularity = args.Length > 2 ? args[2] : Quarter;
+        string fromText = Arg(args, 0, "2025-11-15");
+        string toText = Arg(args, 1, "2026-06-30");
+        string granularity = Arg(args, 2, Quarter);
 
-        if (!TryParse(fromText, out DateOnly from) || !TryParse(toText, out DateOnly to))
+        return Report(fromText, toText, granularity);
+    }
+
+    private static string Arg(string[] args, int index, string fallback) => args.Length > index ? args[index] : fallback;
+
+    private static int Report(string fromText, string toText, string granularity)
+    {
+        bool parsed = TryParseRange(fromText, toText, out DateOnly from, out DateOnly to);
+        bool known = parsed && IsKnownGranularity(granularity);
+        bool ordered = known && from <= to;
+        bool printed = ordered && PrintReport(from, to, granularity);
+
+        PrintInputError(parsed, known, ordered, granularity);
+
+        return printed ? 0 : 1;
+    }
+
+    private static void PrintInputError(bool parsed, bool known, bool ordered, string granularity)
+    {
+        PrintParseError(parsed);
+        PrintGranularityError(parsed && !known, granularity);
+        PrintOrderError(known && !ordered);
+    }
+
+    private static bool TryParseRange(string fromText, string toText, out DateOnly from, out DateOnly to)
+    {
+        bool parsedFrom = TryParse(fromText, out from);
+        bool parsedTo = parsedFrom && TryParse(toText, out to);
+
+        return parsedFrom && parsedTo;
+    }
+
+    private static void PrintParseError(bool parsed)
+    {
+        if (!parsed)
         {
             Console.Error.WriteLine("Ошибка: некорректная дата, ожидается формат yyyy-MM-dd");
-            return 1;
         }
+    }
 
-        if (!IsKnownGranularity(granularity))
+    private static void PrintGranularityError(bool unknown, string granularity)
+    {
+        if (unknown)
         {
             Console.Error.WriteLine($"Ошибка: неизвестная гранулярность {granularity}");
-            return 1;
         }
+    }
 
-        if (from > to)
+    private static void PrintOrderError(bool reversed)
+    {
+        if (reversed)
         {
             Console.Error.WriteLine("Ошибка: начало диапазона позже его конца");
-            return 1;
         }
+    }
 
+    private static bool PrintReport(DateOnly from, DateOnly to, string granularity)
+    {
         List<Period> periods = GeneratePeriods(from, to, granularity);
         List<string> problems = new();
+
         problems.AddRange(FindIntersections(periods));
         problems.AddRange(FindGaps(periods));
-
         PrintPeriods(periods, problems, granularity);
 
-        return problems.Count == 0 ? 0 : 1;
+        return problems.Count == 0;
     }
 
     private static bool TryParse(string value, out DateOnly date) =>
@@ -72,22 +112,25 @@ internal static class Program
         _ => start,
     };
 
-    private static List<Period> GeneratePeriods(DateOnly from, DateOnly to, string granularity)
-    {
-        List<Period> periods = new();
-        DateOnly cursor = AlignStart(from, granularity);
+    private static List<Period> GeneratePeriods(DateOnly from, DateOnly to, string granularity) =>
+        FillPeriods(to, granularity, AlignStart(from, granularity), new List<Period>());
 
-        while (cursor <= to)
+    private static List<Period> FillPeriods(DateOnly to, string granularity, DateOnly cursor, List<Period> periods)
+    {
+        List<Period> result = periods;
+
+        if (cursor <= to)
         {
             DateOnly next = NextStart(cursor, granularity);
-            DateOnly end = next.AddDays(-1);
 
-            periods.Add(new Period(cursor, end > to ? to : end));
-            cursor = next;
+            periods.Add(new Period(cursor, Clamp(next.AddDays(-1), to)));
+            result = FillPeriods(to, granularity, next, periods);
         }
 
-        return periods;
+        return result;
     }
+
+    private static DateOnly Clamp(DateOnly end, DateOnly to) => end > to ? to : end;
 
     private static List<string> FindIntersections(List<Period> periods)
     {
@@ -95,16 +138,18 @@ internal static class Program
 
         for (int i = 1; i < periods.Count; i++)
         {
-            Period previous = periods[i - 1];
-            Period current = periods[i];
-
-            if (current.Start <= previous.End)
-            {
-                problems.Add($"пересечение: {Format(previous.Start)} — {Format(previous.End)} и {Format(current.Start)} — {Format(current.End)}");
-            }
+            AddIntersection(problems, periods[i - 1], periods[i]);
         }
 
         return problems;
+    }
+
+    private static void AddIntersection(List<string> problems, Period previous, Period current)
+    {
+        if (current.Start <= previous.End)
+        {
+            problems.Add($"пересечение: {Format(previous.Start)} — {Format(previous.End)} и {Format(current.Start)} — {Format(current.End)}");
+        }
     }
 
     private static List<string> FindGaps(List<Period> periods)
@@ -113,18 +158,23 @@ internal static class Program
 
         for (int i = 1; i < periods.Count; i++)
         {
-            DateOnly expected = periods[i - 1].End.AddDays(1);
-
-            if (periods[i].Start != expected)
-            {
-                problems.Add($"разрыв между {Format(periods[i - 1].End)} и {Format(periods[i].Start)}");
-            }
+            AddGap(problems, periods[i - 1], periods[i]);
         }
 
         return problems;
     }
 
+    private static void AddGap(List<string> problems, Period previous, Period next)
+    {
+        if (next.Start != previous.End.AddDays(1))
+        {
+            problems.Add($"разрыв между {Format(previous.End)} и {Format(next.Start)}");
+        }
+    }
+
     private static string Format(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static int DaysIn(Period period) => period.End.DayNumber - period.Start.DayNumber + 1;
 
     private static int TotalDays(List<Period> periods)
     {
@@ -132,7 +182,7 @@ internal static class Program
 
         foreach (Period period in periods)
         {
-            days += period.End.DayNumber - period.Start.DayNumber + 1;
+            days += DaysIn(period);
         }
 
         return days;
@@ -140,31 +190,45 @@ internal static class Program
 
     private static void PrintPeriods(List<Period> periods, List<string> problems, string granularity)
     {
+        PrintHeader(granularity, periods);
+        PrintRows(periods);
+        Console.WriteLine();
+        PrintProblems(problems);
+    }
+
+    private static void PrintHeader(string granularity, List<Period> periods)
+    {
         Console.WriteLine($"Гранулярность: {granularity}, периодов: {periods.Count}, дней всего: {TotalDays(periods)}");
         Console.WriteLine();
         Console.WriteLine($"{"№",-4} {"НАЧАЛО",-12} {"КОНЕЦ",-12} {"ДНЕЙ",6}");
         Console.WriteLine(new string('-', 40));
+    }
 
+    private static void PrintRows(List<Period> periods)
+    {
         for (int i = 0; i < periods.Count; i++)
         {
-            Period period = periods[i];
-            int days = period.End.DayNumber - period.Start.DayNumber + 1;
-            Console.WriteLine($"{i + 1,-4} {Format(period.Start),-12} {Format(period.End),-12} {days,6}");
+            Console.WriteLine(FormatLine(i + 1, periods[i]));
         }
+    }
 
-        Console.WriteLine();
+    private static string FormatLine(int number, Period period) =>
+        $"{number,-4} {Format(period.Start),-12} {Format(period.End),-12} {DaysIn(period),6}";
 
+    private static void PrintProblems(List<string> problems)
+    {
         if (problems.Count == 0)
         {
             Console.WriteLine("Периоды непрерывны и не пересекаются.");
-            return;
         }
 
-        foreach (string problem in problems)
+        if (problems.Count > 0)
         {
-            Console.WriteLine($"Проблема: {problem}");
+            problems.ForEach(PrintProblem);
         }
     }
+
+    private static void PrintProblem(string problem) => Console.WriteLine($"Проблема: {problem}");
 
     private readonly record struct Period(DateOnly Start, DateOnly End);
 }

@@ -29,293 +29,516 @@ struct Table {
     std::vector<std::vector<std::string>> rows;
 };
 
+std::string strip_carriage_return(std::string line) {
+    if (!line.empty() && line.back() == '\r') {
+        line.pop_back();
+    }
+
+    return line;
+}
+
+void keep_line(const std::string& line, std::vector<std::string>& lines) {
+    if (!line.empty()) {
+        lines.push_back(line);
+    }
+}
+
+void read_into(std::ifstream& input, std::vector<std::string>& lines) {
+    std::string line;
+
+    while (std::getline(input, line)) {
+        keep_line(strip_carriage_return(line), lines);
+    }
+}
+
 bool read_lines(const std::string& path, std::vector<std::string>& lines) {
     std::ifstream input(path);
-    if (!input.is_open()) {
-        return false;
+    const bool opened = input.is_open();
+
+    if (opened) {
+        read_into(input, lines);
     }
 
-    std::string line;
-    while (std::getline(input, line)) {
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        if (!line.empty()) {
-            lines.push_back(line);
-        }
+    return opened;
+}
+
+bool probe_file(const std::string& candidate) {
+    std::ifstream probe(candidate);
+
+    return probe.is_open();
+}
+
+std::vector<std::string> client_candidates() {
+    return {"data/clients.csv", "../../data/clients.csv"};
+}
+
+void collect_opened(const std::vector<std::string>& candidates, std::size_t index, std::vector<std::string>& opened) {
+    if (index < candidates.size() && probe_file(candidates[index])) {
+        opened.push_back(candidates[index]);
+    }
+}
+
+std::vector<std::string>& open_candidates(const std::vector<std::string>& candidates, std::vector<std::string>& opened) {
+    for (std::size_t index = 0; index < candidates.size(); index += 1) {
+        collect_opened(candidates, index, opened);
     }
 
-    return true;
+    return opened;
+}
+
+std::string pick_opened(const std::vector<std::string>& candidates, const std::vector<std::string>& opened) {
+    return opened.empty() ? candidates.front() : opened.front();
 }
 
 std::string resolve_path(int argc, char** argv) {
-    if (argc > 1) {
-        return argv[1];
-    }
+    const std::vector<std::string> candidates = client_candidates();
+    std::vector<std::string> opened;
+    const std::string fallback = pick_opened(candidates, open_candidates(candidates, opened));
 
-    const std::string candidates[] = {"data/clients.csv", "../../data/clients.csv"};
-    for (const std::string& candidate : candidates) {
-        std::ifstream probe(candidate);
-        if (probe.is_open()) {
-            return candidate;
-        }
-    }
-
-    return candidates[0];
+    return argc > 1 ? std::string(argv[1]) : fallback;
 }
 
-std::string trim(const std::string& value) {
-    std::size_t begin = 0;
-    std::size_t end = value.size();
+bool is_space_at(const std::string& value, std::size_t index) {
+    return std::isspace(static_cast<unsigned char>(value[index])) != 0;
+}
 
-    while (begin < end && std::isspace(static_cast<unsigned char>(value[begin])) != 0) {
+void advance_begin(const std::string& value, std::size_t& begin, std::size_t end) {
+    if (begin < end && is_space_at(value, begin)) {
         begin += 1;
     }
-    while (end > begin && std::isspace(static_cast<unsigned char>(value[end - 1])) != 0) {
+}
+
+void retreat_end(const std::string& value, std::size_t begin, std::size_t& end) {
+    if (end > begin && is_space_at(value, end - 1)) {
         end -= 1;
+    }
+}
+
+std::string trim_range(const std::string& value, std::size_t begin, std::size_t end) {
+    for (; begin < end;) {
+        advance_begin(value, begin, end);
+    }
+    for (; end > begin;) {
+        retreat_end(value, begin, end);
     }
 
     return value.substr(begin, end - begin);
+}
+
+std::string trim(const std::string& value) {
+    return trim_range(value, 0, value.size());
+}
+
+std::size_t next_position(const std::string& line, std::size_t start) {
+    return line.find(kDelimiter, start);
+}
+
+std::string piece(const std::string& line, std::size_t start, std::size_t position) {
+    const bool last = position == std::string::npos;
+    const std::size_t length = last ? std::string::npos : position - start;
+
+    return trim(line.substr(start, length));
+}
+
+void split_step(const std::string& line, std::size_t& start, std::vector<std::string>& parts) {
+    const std::size_t position = next_position(line, start);
+    parts.push_back(piece(line, start, position));
+    start = position + 1;
 }
 
 std::vector<std::string> split(const std::string& line) {
     std::vector<std::string> parts;
     std::size_t start = 0;
 
-    while (true) {
-        const std::size_t position = line.find(kDelimiter, start);
-        if (position == std::string::npos) {
-            parts.push_back(trim(line.substr(start)));
-            break;
-        }
-        parts.push_back(trim(line.substr(start, position - start)));
-        start = position + 1;
+    for (; start <= line.size(); split_step(line, start, parts)) {
     }
 
     return parts;
 }
 
+void append_row(const std::vector<std::string>& lines, std::size_t index, Table& table) {
+    if (index < lines.size()) {
+        table.rows.push_back(split(lines[index]));
+    }
+}
+
+void fill_rows(const std::vector<std::string>& lines, std::size_t index, Table& table) {
+    for (; index < lines.size(); index += 1) {
+        append_row(lines, index, table);
+    }
+}
+
 bool load_table(const std::string& path, Table& table) {
     std::vector<std::string> lines;
-    if (!read_lines(path, lines) || lines.empty()) {
-        return false;
+    const bool opened = read_lines(path, lines);
+
+    if (opened && !lines.empty()) {
+        table.header = split(lines.front());
+        fill_rows(lines, 1, table);
     }
 
-    table.header = split(lines.front());
-    for (std::size_t i = 1; i < lines.size(); ++i) {
-        table.rows.push_back(split(lines[i]));
-    }
+    return opened && !lines.empty();
+}
 
-    return true;
+bool is_sign(char symbol) {
+    return symbol == '-';
+}
+
+bool is_digit_char(char symbol) {
+    return std::isdigit(static_cast<unsigned char>(symbol)) != 0;
+}
+
+std::size_t number_start(const std::string& value) {
+    return !value.empty() && is_sign(value.front()) ? 1 : 0;
+}
+
+void check_digit(const std::string& value, std::size_t index, bool& result) {
+    if (!is_digit_char(value[index])) {
+        result = false;
+    }
+}
+
+void scan_digits(const std::string& value, std::size_t start, std::size_t index, bool& result) {
+    for (; index < value.size(); index += 1) {
+        check_digit(value, index, result);
+    }
 }
 
 bool is_integer(const std::string& value) {
-    bool result = !value.empty();
-    std::size_t start = (value.front() == '-') ? 1 : 0;
-    result = result && value.size() > start;
+    const std::size_t start = number_start(value);
+    bool result = !value.empty() && value.size() > start;
 
-    for (std::size_t i = start; i < value.size(); ++i) {
-        if (std::isdigit(static_cast<unsigned char>(value[i])) == 0) {
-            result = false;
-        }
-    }
+    scan_digits(value, start, start, result);
 
     return result;
 }
 
 bool is_decimal(const std::string& value) {
     const std::size_t dot = value.find_first_of(",.");
-    if (dot == std::string::npos) {
-        return is_integer(value);
+    const bool has_dot = dot != std::string::npos;
+
+    return has_dot ? is_integer(value.substr(0, dot)) && is_integer(value.substr(dot + 1)) : is_integer(value);
+}
+
+bool has_date_shape(const std::string& value) {
+    return value.size() == 10 && value[4] == '-' && value[7] == '-';
+}
+
+std::size_t count_digits(const std::string& value, std::size_t index, std::size_t digits) {
+    for (; index < value.size(); index += 1) {
+        const bool skip_dash = index == 4 || index == 7;
+        digits += (!skip_dash && is_digit_char(value[index])) ? 1 : 0;
     }
 
-    return is_integer(value.substr(0, dot)) && is_integer(value.substr(dot + 1));
+    return digits;
 }
 
 bool is_iso_date(const std::string& value) {
-    if (value.size() != 10 || value[4] != '-' || value[7] != '-') {
-        return false;
-    }
-
-    std::size_t digits = 0;
-    for (std::size_t i = 0; i < value.size(); ++i) {
-        if (i == 4 || i == 7) {
-            continue;
-        }
-        if (std::isdigit(static_cast<unsigned char>(value[i])) != 0) {
-            digits += 1;
-        }
-    }
-
-    return digits == 8;
+    return has_date_shape(value) && count_digits(value, 0, 0) == 8;
 }
 
-std::string detect_type(const std::vector<std::string>& filled) {
-    if (filled.empty()) {
-        return "empty";
-    }
-
+struct TypeCounts {
     std::size_t integers = 0;
     std::size_t numerics = 0;
     std::size_t dates = 0;
+};
+
+TypeCounts& tally_value(const std::string& value, TypeCounts& counts) {
+    counts.integers += is_integer(value) ? 1 : 0;
+    counts.numerics += (is_integer(value) || is_decimal(value)) ? 1 : 0;
+    counts.dates += is_iso_date(value) ? 1 : 0;
+
+    return counts;
+}
+
+TypeCounts tally_all(const std::vector<std::string>& filled) {
+    TypeCounts counts;
 
     for (const std::string& value : filled) {
-        if (is_integer(value)) {
-            integers += 1;
-        }
-        if (is_integer(value) || is_decimal(value)) {
-            numerics += 1;
-        }
-        if (is_iso_date(value)) {
-            dates += 1;
-        }
+        tally_value(value, counts);
     }
 
-    if (integers == filled.size()) {
-        return "int";
-    }
-    if (numerics == filled.size()) {
-        return "float";
-    }
-    if (dates == filled.size()) {
-        return "date";
-    }
+    return counts;
+}
 
-    return "string";
+std::string classify(const std::vector<std::string>& filled) {
+    const TypeCounts counts = tally_all(filled);
+    const std::size_t total = filled.size();
+    const bool all_integers = total > 0 && counts.integers == total;
+    const bool all_numerics = total > 0 && counts.numerics == total;
+    const bool all_dates = total > 0 && counts.dates == total;
+
+    return all_integers ? "int" : all_numerics ? "float" : all_dates ? "date" : filled.empty() ? "empty" : "string";
+}
+
+std::string detect_type(const std::vector<std::string>& filled) {
+    return classify(filled);
+}
+
+std::string cell_at(const std::vector<std::string>& row, std::size_t index) {
+    return index < row.size() ? row[index] : std::string();
+}
+
+void collect_cell(const Table& table, std::size_t index, std::size_t row, std::vector<std::string>& values) {
+    values.push_back(cell_at(table.rows[row], index));
 }
 
 std::vector<std::string> select_column(const Table& table, std::size_t index) {
     std::vector<std::string> values;
-    values.reserve(table.rows.size());
 
-    for (const std::vector<std::string>& row : table.rows) {
-        values.push_back(index < row.size() ? row[index] : std::string());
+    for (std::size_t row = 0; row < table.rows.size(); row += 1) {
+        collect_cell(table, index, row, values);
     }
 
     return values;
 }
 
+void keep_filled(const std::string& value, std::vector<std::string>& filled) {
+    if (!value.empty()) {
+        filled.push_back(value);
+    }
+}
+
 std::vector<std::string> only_filled(const std::vector<std::string>& values) {
     std::vector<std::string> filled;
+
     for (const std::string& value : values) {
-        if (!value.empty()) {
-            filled.push_back(value);
-        }
+        keep_filled(value, filled);
     }
 
     return filled;
 }
 
-void fill_range(ColumnProfile& profile, const std::vector<std::string>& filled) {
-    if (profile.type == "int" || profile.type == "float") {
-        std::vector<double> numbers;
-        for (const std::string& value : filled) {
-            std::string normalized = value;
-            std::replace(normalized.begin(), normalized.end(), ',', '.');
-            numbers.push_back(std::stod(normalized));
-        }
+bool is_numeric_type(const std::string& type) {
+    return type == "int" || type == "float";
+}
 
-        std::ostringstream minimum;
-        std::ostringstream maximum;
-        minimum << std::fixed << std::setprecision(2) << *std::min_element(numbers.begin(), numbers.end());
-        maximum << std::fixed << std::setprecision(2) << *std::max_element(numbers.begin(), numbers.end());
-        profile.minimum = minimum.str();
-        profile.maximum = maximum.str();
-        return;
-    }
+double to_double(const std::string& value) {
+    std::string normalized = value;
+    std::replace(normalized.begin(), normalized.end(), ',', '.');
+    std::istringstream stream(normalized);
+    double number = 0.0;
+    stream >> number;
 
-    if (profile.type == "date") {
-        profile.minimum = *std::min_element(filled.begin(), filled.end());
-        profile.maximum = *std::max_element(filled.begin(), filled.end());
+    return number;
+}
+
+void collect_numbers(const std::vector<std::string>& filled, std::size_t index, std::vector<double>& numbers) {
+    if (index < filled.size()) {
+        numbers.push_back(to_double(filled[index]));
     }
 }
 
-std::string build_sample(const std::vector<std::string>& filled) {
-    std::set<std::string> unique;
-    for (const std::string& value : filled) {
-        if (unique.size() < kMaxSampleValues) {
-            unique.insert(value);
-        }
+std::vector<double> to_numbers(const std::vector<std::string>& filled) {
+    std::vector<double> numbers;
+
+    for (std::size_t index = 0; index < filled.size(); index += 1) {
+        collect_numbers(filled, index, numbers);
     }
 
+    return numbers;
+}
+
+std::string format_two(double value) {
+    std::ostringstream stream;
+    stream << std::fixed << std::setprecision(2) << value;
+
+    return stream.str();
+}
+
+void fill_numeric_range(ColumnProfile& profile, const std::vector<std::string>& filled) {
+    const std::vector<double> numbers = to_numbers(filled);
+    const auto lowest = std::min_element(numbers.begin(), numbers.end());
+    const auto highest = std::max_element(numbers.begin(), numbers.end());
+    profile.minimum = lowest == numbers.end() ? std::string() : format_two(*lowest);
+    profile.maximum = highest == numbers.end() ? std::string() : format_two(*highest);
+}
+
+void fill_text_range(ColumnProfile& profile, const std::vector<std::string>& filled) {
+    profile.minimum = *std::min_element(filled.begin(), filled.end());
+    profile.maximum = *std::max_element(filled.begin(), filled.end());
+}
+
+void fill_range(ColumnProfile& profile, const std::vector<std::string>& filled) {
+    if (is_numeric_type(profile.type) && !filled.empty()) {
+        fill_numeric_range(profile, filled);
+    } else if (profile.type == "date") {
+        fill_text_range(profile, filled);
+    }
+}
+
+bool sample_is_full(const std::set<std::string>& unique) {
+    return unique.size() >= kMaxSampleValues;
+}
+
+void add_sample(const std::string& value, std::set<std::string>& unique) {
+    if (!sample_is_full(unique)) {
+        unique.insert(value);
+    }
+}
+
+std::set<std::string> sample_set(const std::vector<std::string>& filled) {
+    std::set<std::string> unique;
+
+    for (const std::string& value : filled) {
+        add_sample(value, unique);
+    }
+
+    return unique;
+}
+
+void append_with_separator(const std::string& value, std::string& sample) {
+    if (!sample.empty()) {
+        sample += ", ";
+    }
+    sample += value;
+}
+
+std::string build_sample(const std::vector<std::string>& filled) {
+    const std::set<std::string> unique = sample_set(filled);
     std::string sample;
+
     for (const std::string& value : unique) {
-        if (!sample.empty()) {
-            sample += ", ";
-        }
-        sample += value;
+        append_with_separator(value, sample);
     }
 
     return sample;
 }
 
-ColumnProfile profile_column(const std::string& name, const std::vector<std::string>& values) {
-    const std::vector<std::string> filled = only_filled(values);
+std::size_t unique_count(const std::vector<std::string>& filled) {
+    return std::set<std::string>(filled.begin(), filled.end()).size();
+}
 
-    ColumnProfile profile;
+void set_counts(ColumnProfile& profile, std::size_t total, const std::vector<std::string>& filled) {
+    profile.rows = total;
+    profile.empty = total - filled.size();
+}
+
+void assign_basic(ColumnProfile& profile, const std::string& name, const std::vector<std::string>& values,
+                  const std::vector<std::string>& filled) {
     profile.name = name;
+    set_counts(profile, values.size(), filled);
+    profile.unique = unique_count(filled);
+}
+
+ColumnProfile filled_profile(const std::string& name, const std::vector<std::string>& values,
+                             const std::vector<std::string>& filled) {
+    ColumnProfile profile;
+    assign_basic(profile, name, values, filled);
     profile.type = detect_type(filled);
-    profile.rows = values.size();
-    profile.empty = values.size() - filled.size();
-    profile.unique = std::set<std::string>(filled.begin(), filled.end()).size();
     profile.sample = build_sample(filled);
 
+    return profile;
+}
+
+ColumnProfile profile_column(const std::string& name, const std::vector<std::string>& values) {
+    const std::vector<std::string> filled = only_filled(values);
+    ColumnProfile profile = filled_profile(name, values, filled);
     fill_range(profile, filled);
 
     return profile;
 }
 
-std::vector<ColumnProfile> build_profiles(const Table& table) {
-    std::vector<ColumnProfile> profiles;
-    for (std::size_t i = 0; i < table.header.size(); ++i) {
-        profiles.push_back(profile_column(table.header[i], select_column(table, i)));
+void add_profile(const Table& table, std::size_t index, std::vector<ColumnProfile>& profiles) {
+    if (index < table.header.size()) {
+        profiles.push_back(profile_column(table.header[index], select_column(table, index)));
+    }
+}
+
+std::vector<ColumnProfile> build_profiles(const Table& table, std::size_t index, std::vector<ColumnProfile>& profiles) {
+    for (; index < table.header.size(); index += 1) {
+        add_profile(table, index, profiles);
     }
 
     return profiles;
 }
 
+std::vector<ColumnProfile> profiles_of(const Table& table) {
+    std::vector<ColumnProfile> profiles;
+
+    return build_profiles(table, 0, profiles);
+}
+
+double empty_percent(const ColumnProfile& profile) {
+    return profile.rows == 0 ? 0.0 : 100.0 * static_cast<double>(profile.empty) / static_cast<double>(profile.rows);
+}
+
 std::string empty_share(const ColumnProfile& profile) {
     std::ostringstream share;
-    const double percent = profile.rows == 0 ? 0.0 : 100.0 * static_cast<double>(profile.empty) / static_cast<double>(profile.rows);
-    share << std::fixed << std::setprecision(1) << percent << '%';
+    share << std::fixed << std::setprecision(1) << empty_percent(profile) << '%';
 
     return share.str();
 }
 
-void print_profiles(const std::string& path, const std::vector<ColumnProfile>& profiles) {
+void print_caption(const std::string& path) {
     std::cout << "Профиль файла: " << path << '\n';
-    std::cout << "Колонок: " << profiles.size() << "\n\n";
+}
+
+void print_columns(std::size_t count) {
+    std::cout << "Колонок: " << count << "\n\n";
+}
+
+void print_header() {
     std::cout << std::left << std::setw(14) << "КОЛОНКА" << std::setw(8) << "ТИП" << std::right << std::setw(6) << "ПУСТО"
               << std::setw(9) << "ДОЛЯ" << std::setw(8) << "УНИК." << "  " << std::left << std::setw(12) << "MIN"
               << std::setw(12) << "MAX" << '\n';
     std::cout << std::string(76, '-') << '\n';
+}
 
+void print_profile_line(const ColumnProfile& profile) {
+    std::cout << std::left << std::setw(14) << profile.name << std::setw(8) << profile.type << std::right
+              << std::setw(6) << profile.empty << std::setw(9) << empty_share(profile) << std::setw(8)
+              << profile.unique << "  " << std::left << std::setw(12) << profile.minimum << std::setw(12)
+              << profile.maximum << '\n';
+    std::cout << "  примеры: " << profile.sample << '\n';
+}
+
+void print_profiles_block(const std::vector<ColumnProfile>& profiles) {
     for (const ColumnProfile& profile : profiles) {
-        std::cout << std::left << std::setw(14) << profile.name << std::setw(8) << profile.type << std::right
-                  << std::setw(6) << profile.empty << std::setw(9) << empty_share(profile) << std::setw(8)
-                  << profile.unique << "  " << std::left << std::setw(12) << profile.minimum << std::setw(12)
-                  << profile.maximum << '\n';
-        std::cout << "  примеры: " << profile.sample << '\n';
+        print_profile_line(profile);
     }
+}
+
+void print_profiles(const std::string& path, const std::vector<ColumnProfile>& profiles) {
+    print_caption(path);
+    print_header();
+    print_profiles_block(profiles);
+}
+
+void report_read_error(const std::string& path) {
+    std::cerr << "Ошибка: не удалось прочитать файл " << path << '\n';
+}
+
+void report_empty_table() {
+    std::cerr << "Ошибка: в файле нет строк с данными\n";
+}
+
+int fail_read(const std::string& path) {
+    report_read_error(path);
+
+    return 1;
+}
+
+int fail_empty() {
+    report_empty_table();
+
+    return 1;
+}
+
+int run(const std::string& path) {
+    Table table;
+    const bool loaded = load_table(path, table);
+    const bool has_rows = !table.rows.empty();
+
+    if (loaded && has_rows) {
+        print_profiles(path, profiles_of(table));
+    }
+
+    return loaded && has_rows ? 0 : (loaded ? fail_empty() : fail_read(path));
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
-    const std::string path = resolve_path(argc, argv);
-    Table table;
-
-    if (!load_table(path, table)) {
-        std::cerr << "Ошибка: не удалось прочитать файл " << path << '\n';
-        return 1;
-    }
-
-    if (table.rows.empty()) {
-        std::cerr << "Ошибка: в файле нет строк с данными\n";
-        return 1;
-    }
-
-    print_profiles(path, build_profiles(table));
-
-    return 0;
+    return run(resolve_path(argc, argv));
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 const DEFAULT_SIZE = 2000;
 const DEFAULT_SEED = 42;
+const HEADER_COLUMNS = ['АЛГОРИТМ', 'ВРЕМЯ, МС', 'КОРРЕКТНО'];
 
 function build_random_list(int $size, int $seed): array
 {
@@ -16,78 +17,148 @@ function build_random_list(int $size, int $seed): array
     return $values;
 }
 
-function insertion_sort(array $values): array
+function shift_right(array $values, int $j): array
 {
-    $size = count($values);
-    for ($i = 1; $i < $size; $i++) {
-        $current = $values[$i];
-        $j = $i - 1;
-        while ($j >= 0 && $values[$j] > $current) {
-            $values[$j + 1] = $values[$j];
-            $j--;
-        }
-        $values[$j + 1] = $current;
-    }
+    $values[$j + 1] = $values[$j];
 
     return $values;
 }
 
-function merge(array $left, array $right): array
+function shift_while_greater(array $values, int $j, int $current): array
 {
-    $result = [];
-    $i = 0;
-    $j = 0;
-    while ($i < count($left) && $j < count($right)) {
-        if ($left[$i] <= $right[$j]) {
-            $result[] = $left[$i];
-            $i++;
-        } else {
-            $result[] = $right[$j];
-            $j++;
-        }
+    $state = ['values' => $values, 'j' => $j, 'done' => $j < 0 || $values[$j] <= $current];
+    while (!$state['done']) {
+        $state = shift_step($state['values'], $state['j'], $current);
     }
 
-    return array_merge($result, array_slice($left, $i), array_slice($right, $j));
+    return $state;
+}
+
+function shift_step(array $values, int $j, int $current): array
+{
+    $canShift = $j >= 0 && $values[$j] > $current;
+    $next = $canShift ? shift_right($values, $j) : $values;
+
+    return ['values' => $next, 'j' => $j - 1, 'done' => !$canShift];
+}
+
+function insertion_pass(array $values, int $i, int $size): array
+{
+    $result = $values;
+    while ($i < $size) {
+        $result = insert_item($result, $i);
+        $i += 1;
+    }
+
+    return $result;
+}
+
+function insert_item(array $values, int $i): array
+{
+    $current = $values[$i];
+    $state = shift_while_greater($values, $i - 1, $current);
+    $result = $state['values'];
+    $result[$state['j'] + 1] = $current;
+
+    return $result;
+}
+
+function insertion_sort(array $values): array
+{
+    return insertion_pass($values, 1, count($values));
+}
+
+function take_left(array $result, array $left, int $i): array
+{
+    $result[] = $left[$i];
+
+    return $result;
+}
+
+function take_right(array $result, array $right, int $j): array
+{
+    $result[] = $right[$j];
+
+    return $result;
+}
+
+function merge_while(array $left, array $right, array $result, int $i, int $j): array
+{
+    $state = ['result' => $result, 'i' => $i, 'j' => $j, 'done' => $i >= count($left) || $j >= count($right)];
+    while (!$state['done']) {
+        $state = merge_step($left, $right, $state['result'], $state['i'], $state['j']);
+    }
+
+    return $state;
+}
+
+function merge_step(array $left, array $right, array $result, int $i, int $j): array
+{
+    $takeLeft = $left[$i] <= $right[$j];
+    $merged = $takeLeft ? take_left($result, $left, $i) : take_right($result, $right, $j);
+
+    return ['result' => $merged, 'i' => $i + ($takeLeft ? 1 : 0), 'j' => $j + ($takeLeft ? 0 : 1), 'done' => false];
+}
+
+function merge(array $left, array $right): array
+{
+    $state = merge_while($left, $right, [], 0, 0);
+
+    return array_merge($state['result'], array_slice($left, $state['i']), array_slice($right, $state['j']));
 }
 
 function merge_sort(array $values): array
 {
-    if (count($values) < 2) {
-        return $values;
+    $middle = intdiv(count($values), 2);
+    $sorted = count($values) < 2 ? $values : merge(merge_sort(array_slice($values, 0, $middle)), merge_sort(array_slice($values, $middle)));
+
+    return $sorted;
+}
+
+function swap(array $values, int $a, int $b): array
+{
+    [$values[$a], $values[$b]] = [$values[$b], $values[$a]];
+
+    return $values;
+}
+
+function partition_pass(array $values, int $low, int $high, int $i, int $j): array
+{
+    $pivot = $values[$high];
+    $state = ['values' => $values, 'i' => $i, 'j' => $j];
+    while ($state['j'] < $high) {
+        $state = partition_step($state['values'], $state['i'], $state['j'], $pivot);
     }
 
-    $middle = intdiv(count($values), 2);
-    $left = merge_sort(array_slice($values, 0, $middle));
-    $right = merge_sort(array_slice($values, $middle));
+    return $state;
+}
 
-    return merge($left, $right);
+function partition_step(array $values, int $i, int $j, int $pivot): array
+{
+    $swapNow = $values[$j] <= $pivot;
+    $next = $swapNow ? $i + 1 : $i;
+
+    return ['values' => $swapNow ? swap($values, $next, $j) : $values, 'i' => $next, 'j' => $j + 1];
 }
 
 function quick_sort_partition(array $values, int $low, int $high): array
 {
-    $pivot = $values[$high];
-    $i = $low - 1;
-    for ($j = $low; $j < $high; $j++) {
-        if ($values[$j] <= $pivot) {
-            $i++;
-            [$values[$i], $values[$j]] = [$values[$j], $values[$i]];
-        }
-    }
-    [$values[$i + 1], $values[$high]] = [$values[$high], $values[$i + 1]];
+    $state = partition_pass($values, $low, $high, $low - 1, $low);
+    $values = swap($state['values'], $state['i'] + 1, $high);
 
-    return [$values, $i + 1];
+    return [$values, $state['i'] + 1];
 }
 
 function quick_sort_range(array $values, int $low, int $high): array
 {
-    if ($low >= $high) {
-        return $values;
+    $result = $values;
+    if ($low < $high) {
+        [$result, $pivot] = quick_sort_partition($values, $low, $high);
+        $result = quick_sort_range($result, $low, $pivot - 1);
+        $result = quick_sort_range($result, $pivot + 1, $high);
     }
 
-    [$values, $pivot] = quick_sort_partition($values, $low, $high);
-    $values = quick_sort_range($values, $low, $pivot - 1);
-
-    return quick_sort_range($values, $pivot + 1, $high);
+    return $result;
 }
 
 function quick_sort(array $values): array
@@ -100,9 +171,7 @@ function is_sorted(array $values): bool
     $size = count($values);
     $sorted = true;
     for ($i = 1; $i < $size; $i++) {
-        if ($values[$i - 1] > $values[$i]) {
-            $sorted = false;
-        }
+        $sorted = $values[$i - 1] > $values[$i] ? false : $sorted;
     }
 
     return $sorted;
@@ -120,50 +189,97 @@ function measure(callable $algorithm, array $values): array
 function collect_measurement(string $name, callable $algorithm, array $values, array $reference): array
 {
     $measurement = measure($algorithm, $values);
-    $matches = $measurement['result'] === $reference;
 
-    return ['name' => $name, 'ms' => $measurement['ms'], 'correct' => $matches];
+    return ['name' => $name, 'ms' => $measurement['ms'], 'correct' => $measurement['result'] === $reference];
+}
+
+function sort_copy(array $values): array
+{
+    sort($values);
+
+    return $values;
+}
+
+function collect_measurements(array $values, array $reference): array
+{
+    return [
+        collect_measurement('вставки', 'insertion_sort', $values, $reference),
+        collect_measurement('слияние', 'merge_sort', $values, $reference),
+        collect_measurement('быстрая', 'quick_sort', $values, $reference),
+        measure_array_sort($values, $reference),
+    ];
+}
+
+function measure_array_sort(array $values, array $reference): array
+{
+    $measurement = measure('sort_copy', $values);
+
+    return ['name' => 'array_sort', 'ms' => $measurement['ms'], 'correct' => $measurement['result'] === $reference];
+}
+
+function print_size(int $size): void
+{
+    printf("Размер массива: %d элементов%s%s", $size, PHP_EOL, PHP_EOL);
+}
+
+function print_table_head(): void
+{
+    printf("%-16s %12s %10s%s", ...array_merge(HEADER_COLUMNS, [PHP_EOL]));
+}
+
+function print_separator(): void
+{
+    printf("%s%s", str_repeat('-', 42), PHP_EOL);
+}
+
+function print_measurement(array $measurement): void
+{
+    printf("%-16s %12.2f %10s%s", $measurement['name'], $measurement['ms'], $measurement['correct'] ? 'да' : 'НЕТ', PHP_EOL);
+}
+
+function print_rows(array $measurements): void
+{
+    foreach ($measurements as $measurement) {
+        print_measurement($measurement);
+    }
 }
 
 function print_report(array $measurements, int $size): void
 {
-    printf("Размер массива: %d элементов%s%s", $size, PHP_EOL, PHP_EOL);
-    printf("%-16s %12s %10s%s", 'АЛГОРИТМ', 'ВРЕМЯ, МС', 'КОРРЕКТНО', PHP_EOL);
-    printf("%s%s", str_repeat('-', 42), PHP_EOL);
-    foreach ($measurements as $measurement) {
-        printf(
-            "%-16s %12.2f %10s%s",
-            $measurement['name'],
-            $measurement['ms'],
-            $measurement['correct'] ? 'да' : 'НЕТ',
-            PHP_EOL
-        );
-    }
+    print_size($size);
+    print_table_head();
+    print_separator();
+    print_rows($measurements);
+}
+
+function read_size(array $argv): int
+{
+    return (int) ($argv[1] ?? DEFAULT_SIZE);
+}
+
+function report_size_error(): void
+{
+    fwrite(STDERR, 'Ошибка: размер массива должен быть не меньше 2' . PHP_EOL);
 }
 
 function main(array $argv): int
 {
-    $size = (int) ($argv[1] ?? DEFAULT_SIZE);
+    $size = read_size($argv);
     if ($size < 2) {
-        fwrite(STDERR, 'Ошибка: размер массива должен быть не меньше 2' . PHP_EOL);
-
-        return 1;
+        report_size_error();
+    }
+    if ($size >= 2) {
+        run_bench($size);
     }
 
+    return $size < 2 ? 1 : 0;
+}
+
+function run_bench(int $size): void
+{
     $values = build_random_list($size, DEFAULT_SEED);
-    $reference = $values;
-    sort($reference);
-
-    $measurements = [
-        collect_measurement('вставки', 'insertion_sort', $values, $reference),
-        collect_measurement('слияние', 'merge_sort', $values, $reference),
-        collect_measurement('быстрая', 'quick_sort', $values, $reference),
-        collect_measurement('array_sort', static fn (array $v): array => (static function (array $list): array { sort($list); return $list; })($v), $values, $reference),
-    ];
-
-    print_report($measurements, $size);
-
-    return is_sorted($reference) ? 0 : 1;
+    $reference = sort_copy($values);
+    print_report(collect_measurements($values, $reference), $size);
 }
 
 exit(main($argv));

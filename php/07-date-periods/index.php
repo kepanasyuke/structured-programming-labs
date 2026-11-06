@@ -6,16 +6,29 @@ const PERIOD_MONTH = 'month';
 const PERIOD_QUARTER = 'quarter';
 const PERIOD_YEAR = 'year';
 const MONTHS_IN_QUARTER = 3;
+const DATE_FORMAT = 'Y-m-d';
+const HEADER_COLUMNS = ['№', 'НАЧАЛО', 'КОНЕЦ', 'ДНЕЙ'];
+const FIRST_MONTH_STEP = '+1 month';
+const QUARTER_MONTH_STEP = '+3 months';
+const YEAR_STEP = '+1 year';
 
-function parse_date(string $value): DateTimeImmutable
+function create_date(string $value): DateTimeImmutable|false
 {
-    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-    $errors = DateTimeImmutable::getLastErrors();
-    if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
-        throw new RuntimeException("некорректная дата: {$value}");
-    }
+    return DateTimeImmutable::createFromFormat('!' . DATE_FORMAT, $value);
+}
 
-    return $date;
+function has_date_errors(): bool
+{
+    $errors = DateTimeImmutable::getLastErrors();
+
+    return $errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0);
+}
+
+function parse_date(string $value): ?DateTimeImmutable
+{
+    $date = create_date($value);
+
+    return $date === false || has_date_errors() ? null : $date;
 }
 
 function month_start(DateTimeImmutable $date): DateTimeImmutable
@@ -23,167 +36,305 @@ function month_start(DateTimeImmutable $date): DateTimeImmutable
     return $date->modify('first day of this month');
 }
 
-function month_end(DateTimeImmutable $date): DateTimeImmutable
+function first_quarter_month(DateTimeImmutable $date): int
 {
-    return $date->modify('last day of this month');
+    return intdiv((int) $date->format('n') - 1, MONTHS_IN_QUARTER) * MONTHS_IN_QUARTER + 1;
 }
 
 function quarter_start(DateTimeImmutable $date): DateTimeImmutable
 {
-    $firstMonth = intdiv((int) $date->format('n') - 1, MONTHS_IN_QUARTER) * MONTHS_IN_QUARTER + 1;
-
-    return $date->setDate((int) $date->format('Y'), $firstMonth, 1);
+    return $date->setDate((int) $date->format('Y'), first_quarter_month($date), 1);
 }
 
-function next_period_start(DateTimeImmutable $start, string $granularity): DateTimeImmutable
+function year_start(DateTimeImmutable $date): DateTimeImmutable
 {
-    if ($granularity === PERIOD_MONTH) {
-        return $start->modify('+1 month');
-    }
-    if ($granularity === PERIOD_QUARTER) {
-        return $start->modify('+3 months');
-    }
-    if ($granularity === PERIOD_YEAR) {
-        return $start->modify('+1 year');
-    }
-
-    throw new RuntimeException("неизвестная гранулярность: {$granularity}");
+    return $date->setDate((int) $date->format('Y'), 1, 1);
 }
 
-function align_start(DateTimeImmutable $date, string $granularity): DateTimeImmutable
+function shift_months(DateTimeImmutable $start): DateTimeImmutable
 {
-    if ($granularity === PERIOD_MONTH) {
-        return month_start($date);
-    }
-    if ($granularity === PERIOD_QUARTER) {
-        return quarter_start($date);
-    }
-    if ($granularity === PERIOD_YEAR) {
-        return $date->setDate((int) $date->format('Y'), 1, 1);
-    }
-
-    throw new RuntimeException("неизвестная гранулярность: {$granularity}");
+    return $start->modify(FIRST_MONTH_STEP);
 }
 
+function shift_quarters(DateTimeImmutable $start): DateTimeImmutable
+{
+    return $start->modify(QUARTER_MONTH_STEP);
+}
+
+function shift_years(DateTimeImmutable $start): DateTimeImmutable
+{
+    return $start->modify(YEAR_STEP);
+}
+
+function is_unknown_granularity(string $granularity): bool
+{
+    return $granularity !== PERIOD_MONTH && $granularity !== PERIOD_QUARTER && $granularity !== PERIOD_YEAR;
+}
+
+function next_period_start(DateTimeImmutable $start, string $granularity): ?DateTimeImmutable
+{
+    $next = $granularity === PERIOD_MONTH ? shift_months($start) : shift_quarters($start);
+    if ($granularity === PERIOD_YEAR) {
+        $next = shift_years($start);
+    }
+
+    return is_unknown_granularity($granularity) ? null : $next;
+}
+
+function align_start(DateTimeImmutable $date, string $granularity): ?DateTimeImmutable
+{
+    $aligned = $granularity === PERIOD_MONTH ? month_start($date) : quarter_start($date);
+    if ($granularity === PERIOD_YEAR) {
+        $aligned = year_start($date);
+    }
+
+    return is_unknown_granularity($granularity) ? null : $aligned;
+}
+
+function clamp_end(DateTimeImmutable $end, DateTimeImmutable $to): DateTimeImmutable
+{
+    return $end > $to ? $to : $end;
+}
+
+function make_period(DateTimeImmutable $start, DateTimeImmutable $next, DateTimeImmutable $to): array
+{
+    return ['start' => $start, 'end' => clamp_end($next->modify('-1 day'), $to)];
+}
+
+function collect_periods(DateTimeImmutable $cursor, DateTimeImmutable $to, string $granularity, array $periods): array
+{
+    $state = ['periods' => $periods, 'cursor' => $cursor];
+    while ($state['cursor'] <= $to) {
+        $state = period_step($state['cursor'], next_period_start($state['cursor'], $granularity), $to, $state['periods']);
+    }
+
+    return $state['periods'];
+}
+function period_step(DateTimeImmutable $cursor, ?DateTimeImmutable $next, DateTimeImmutable $to, array $periods): array
+{
+    $periods[] = make_period($cursor, $next ?? $cursor, $to);
+
+    return ['periods' => $periods, 'cursor' => $next ?? $cursor];
+}
 function generate_periods(DateTimeImmutable $from, DateTimeImmutable $to, string $granularity): array
 {
-    $periods = [];
-    $cursor = align_start($from, $granularity);
-    while ($cursor <= $to) {
-        $next = next_period_start($cursor, $granularity);
-        $end = $next->modify('-1 day');
-        if ($end > $to) {
-            $end = $to;
-        }
-        $periods[] = ['start' => $cursor, 'end' => $end];
-        $cursor = $next;
+    $start = align_start($from, $granularity);
+
+    return $start === null ? [] : collect_periods($start, $to, $granularity, []);
+}
+
+function format_date(DateTimeImmutable $date): string
+{
+    return $date->format(DATE_FORMAT);
+}
+
+function overlap_message(array $previous, array $current): string
+{
+    return sprintf('пересечение: %s — %s и %s — %s', format_date($previous['start']), format_date($previous['end']), format_date($current['start']), format_date($current['end']));
+}
+
+function find_overlap(array $previous, array $current): array
+{
+    return $current['start'] <= $previous['end'] ? [overlap_message($previous, $current)] : [];
+}
+
+function intersection_loop(array $periods, int $index, int $count, array $problems): array
+{
+    $result = $problems;
+    while ($index < $count) {
+        $result = array_merge($result, find_overlap($periods[$index - 1], $periods[$index]));
+        $index += 1;
     }
 
-    return $periods;
+    return $result;
 }
 
 function find_intersections(array $periods): array
 {
-    $problems = [];
-    $count = count($periods);
-    for ($i = 1; $i < $count; $i++) {
-        $previous = $periods[$i - 1];
-        $current = $periods[$i];
-        if ($current['start'] <= $previous['end']) {
-            $problems[] = sprintf(
-                'пересечение: %s — %s и %s — %s',
-                $previous['start']->format('Y-m-d'),
-                $previous['end']->format('Y-m-d'),
-                $current['start']->format('Y-m-d'),
-                $current['end']->format('Y-m-d')
-            );
-        }
+    return intersection_loop($periods, 1, count($periods), []);
+}
+
+function expected_start(array $previous): DateTimeImmutable
+{
+    return $previous['end']->modify('+1 day');
+}
+
+function gap_message(array $previous, array $current): string
+{
+    return sprintf('разрыв между %s и %s', format_date($previous['end']), format_date($current['start']));
+}
+
+function find_gap(array $previous, array $current): array
+{
+    return $current['start'] != expected_start($previous) ? [gap_message($previous, $current)] : [];
+}
+
+function gap_loop(array $periods, int $index, int $count, array $problems): array
+{
+    $result = $problems;
+    while ($index < $count) {
+        $result = array_merge($result, find_gap($periods[$index - 1], $periods[$index]));
+        $index += 1;
     }
 
-    return $problems;
+    return $result;
 }
 
 function find_gaps(array $periods): array
 {
-    $problems = [];
-    $count = count($periods);
-    for ($i = 1; $i < $count; $i++) {
-        $expected = $periods[$i - 1]['end']->modify('+1 day');
-        if ($periods[$i]['start'] != $expected) {
-            $problems[] = sprintf(
-                'разрыв между %s и %s',
-                $periods[$i - 1]['end']->format('Y-m-d'),
-                $periods[$i]['start']->format('Y-m-d')
-            );
-        }
-    }
+    return gap_loop($periods, 1, count($periods), []);
+}
 
-    return $problems;
+function period_days(array $period): int
+{
+    return (int) $period['start']->diff($period['end'])->days + 1;
 }
 
 function total_days(array $periods): int
 {
     $days = 0;
     foreach ($periods as $period) {
-        $days += (int) $period['start']->diff($period['end'])->days + 1;
+        $days += period_days($period);
     }
 
     return $days;
 }
 
-function print_periods(array $periods, array $problems, string $granularity): void
+function print_summary(array $periods, string $granularity): void
 {
     printf("Гранулярность: %s, периодов: %d, дней всего: %d%s%s", $granularity, count($periods), total_days($periods), PHP_EOL, PHP_EOL);
-    printf("%-4s %-12s %-12s %6s%s", '№', 'НАЧАЛО', 'КОНЕЦ', 'ДНЕЙ', PHP_EOL);
+}
+
+function print_table_head(): void
+{
+    printf("%-4s %-12s %-12s %6s%s", ...array_merge(HEADER_COLUMNS, [PHP_EOL]));
+}
+
+function print_separator(): void
+{
     printf("%s%s", str_repeat('-', 40), PHP_EOL);
+}
 
+function print_period_row(int $index, array $period): void
+{
+    printf("%-4d %-12s %-12s %6d%s", $index + 1, format_date($period['start']), format_date($period['end']), period_days($period), PHP_EOL);
+}
+
+function print_period_rows(array $periods): void
+{
     foreach ($periods as $index => $period) {
-        printf(
-            "%-4d %-12s %-12s %6d%s",
-            $index + 1,
-            $period['start']->format('Y-m-d'),
-            $period['end']->format('Y-m-d'),
-            (int) $period['start']->diff($period['end'])->days + 1,
-            PHP_EOL
-        );
+        print_period_row($index, $period);
     }
+}
 
-    printf("%s", PHP_EOL);
-    if ($problems === []) {
-        printf("Периоды непрерывны и не пересекаются.%s", PHP_EOL);
-
-        return;
-    }
-
+function print_problems(array $problems): void
+{
     foreach ($problems as $problem) {
         printf("Проблема: %s%s", $problem, PHP_EOL);
     }
 }
 
+function print_continuity(array $problems): void
+{
+    if ($problems === []) {
+        printf("Периоды непрерывны и не пересекаются.%s", PHP_EOL);
+    }
+    if ($problems !== []) {
+        print_problems($problems);
+    }
+}
+
+function print_periods(array $periods, array $problems, string $granularity): void
+{
+    print_summary($periods, $granularity);
+    print_table_head();
+    print_separator();
+    print_period_rows($periods);
+    printf("%s", PHP_EOL);
+    print_continuity($problems);
+}
+
+function read_argument(array $argv, int $index, string $fallback): string
+{
+    return $argv[$index] ?? $fallback;
+}
+
+function parse_bounds(array $argv): array
+{
+    return ['from' => parse_date(read_argument($argv, 1, '2025-11-15')), 'to' => parse_date(read_argument($argv, 2, '2026-06-30'))];
+}
+
+function grant_granularity(array $argv): string
+{
+    return read_argument($argv, 3, PERIOD_QUARTER);
+}
+
+function is_bad_bounds(array $bounds): bool
+{
+    return $bounds['from'] === null || $bounds['to'] === null;
+}
+
+function date_error_message(array $bounds): string
+{
+    $bad = $bounds['from'] === null ? 'from' : 'to';
+
+    return is_bad_bounds($bounds) ? 'Ошибка: некорректная дата: ' . ($bad === 'from' ? $bounds['from'] ?? '' : $bounds['to'] ?? '') . PHP_EOL : '';
+}
+
+function report_granularity_error(string $granularity): void
+{
+    if (is_unknown_granularity($granularity)) {
+        fwrite(STDERR, 'Ошибка: неизвестная гранулярность: ' . $granularity . PHP_EOL);
+    }
+}
+
+function report_empty_error(): void
+{
+    fwrite(STDERR, 'Ошибка: диапазон не содержит ни одного периода' . PHP_EOL);
+}
+
+function build_code(bool $bad, string $granularity, array $periods): int
+{
+    $failed = $bad || is_unknown_granularity($granularity) || $periods === [];
+
+    return $failed ? 1 : 0;
+}
+
+function solve(array $argv): array
+{
+    $bounds = parse_bounds($argv);
+    $granularity = grant_granularity($argv);
+    $valid = !is_bad_bounds($bounds) && !is_unknown_granularity($granularity);
+    $periods = $valid ? generate_periods($bounds['from'], $bounds['to'], $granularity) : [];
+
+    return ['bounds' => $bounds, 'granularity' => $granularity, 'periods' => $periods];
+}
+
+function report_outcome(array $solution): void
+{
+    fwrite(STDERR, date_error_message($solution['bounds']));
+    report_granularity_error($solution['granularity']);
+    if (!is_bad_bounds($solution['bounds']) && !is_unknown_granularity($solution['granularity']) && $solution['periods'] === []) {
+        report_empty_error();
+    }
+}
+
 function main(array $argv): int
 {
-    $from = $argv[1] ?? '2025-11-15';
-    $to = $argv[2] ?? '2026-06-30';
-    $granularity = $argv[3] ?? PERIOD_QUARTER;
+    $solution = solve($argv);
+    $granularity = $solution['granularity'];
+    $periods = $solution['periods'];
+    report_outcome($solution);
+    print_outcome($periods, $granularity);
 
-    try {
-        $periods = generate_periods(parse_date($from), parse_date($to), $granularity);
-    } catch (RuntimeException $error) {
-        fwrite(STDERR, 'Ошибка: ' . $error->getMessage() . PHP_EOL);
+    return build_code(is_bad_bounds($solution['bounds']), $granularity, $periods);
+}
 
-        return 1;
+function print_outcome(array $periods, string $granularity): void
+{
+    if ($periods !== [] && !is_unknown_granularity($granularity)) {
+        print_periods($periods, array_merge(find_intersections($periods), find_gaps($periods)), $granularity);
     }
-
-    if ($periods === []) {
-        fwrite(STDERR, 'Ошибка: диапазон не содержит ни одного периода' . PHP_EOL);
-
-        return 1;
-    }
-
-    $problems = array_merge(find_intersections($periods), find_gaps($periods));
-    print_periods($periods, $problems, $granularity);
-
-    return $problems === [] ? 0 : 1;
 }
 
 exit(main($argv));

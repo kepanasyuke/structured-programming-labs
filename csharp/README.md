@@ -12,11 +12,11 @@ dotnet run --project TextStats -- ../../data/sample.txt
 
 | Проект | Задача | Ключевые методы |
 |--------|--------|-----------------|
-| TextStats | частота слов, топ-N, стоп-слова | `SplitWords`, `CountWords`, `SelectTop`, `CompareByFrequency` |
-| CsvProfiler | профиль колонок CSV | `DetectType`, `ProfileColumn`, `FillRange`, `PrintProfiles` |
-| RpnCalc | разбор и вычисление выражения | `Tokenize`, `TryToRpn`, `TryEvaluate`, `PopUntilBracket` |
-| DqChecks | правила качества данных и проверка ИНН | `BuildRules`, `RunChecks`, `HasValidInnChecksum` |
-| LogParser | статистика по логу задач | `ParseLine`, `Summarize`, `Percentile`, `PrintReport` |
+| TextStats | частота слов, топ-N, стоп-слова | `TryReadText`, `SplitWords`, `CountWords`, `SelectTop`, `CompareByFrequency` |
+| CsvProfiler | профиль колонок CSV | `TryReadCsv`, `ProfileColumn`, `DetectType`, `FillRange`, `PrintProfiles` |
+| RpnCalc | разбор и вычисление выражения | `Tokenize`, `TryToRpn`, `TryEvaluate`, `ApplyOperator` |
+| DqChecks | правила качества данных и проверка ИНН | `BuildRules`, `RunChecks`, `CheckInn`, `HasValidInnChecksum` |
+| LogParser | статистика по логу задач | `ParseLine`, `Aggregate`, `Percentile`, `PrintReport` |
 | SortBench | три сортировки и замер | `insertionSort`, `mergeSort`, `quickSort`, `Measure` |
 | DatePeriods | отчётные периоды и контроль разрывов | `GeneratePeriods`, `FindIntersections`, `FindGaps` |
 | MovingAverage | среднее и выбросы | `MovingAverage`, `ZScore`, `FindOutliers`, `BuildBar` |

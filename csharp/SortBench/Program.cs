@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -12,39 +12,69 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        int size = args.Length > 0 && int.TryParse(args[0], out int parsed) ? parsed : DefaultSize;
+        int size = ParseSize(args);
+        bool accepted = size >= 2;
 
-        if (size < 2)
+        if (accepted)
         {
-            Console.Error.WriteLine("Ошибка: размер массива должен быть не меньше 2");
-            return 1;
+            RunBenchmark(size);
         }
 
-        int[] values = BuildRandomArray(size, DefaultSeed);
-        int[] reference = (int[])values.Clone();
-        Array.Sort(reference);
+        PrintSizeError(accepted);
 
-        List<Measurement> measurements = new()
-        {
-            Measure("вставки", insertionSort, values, reference),
-            Measure("слияние", mergeSort, values, reference),
-            Measure("быстрая", quickSort, values, reference),
-            Measure("Array.Sort", BuiltInSort, values, reference),
-        };
-
-        PrintReport(measurements, size);
-
-        return IsSorted(reference) ? 0 : 1;
+        return accepted ? 0 : 1;
     }
 
-    private static int[] BuildRandomArray(int size, int seed)
-    {
-        Random random = new(seed);
-        int[] values = new int[size];
+    private static int ParseSize(string[] args) => args.Length > 0 && int.TryParse(args[0], out int parsed) ? parsed : DefaultSize;
 
-        for (int i = 0; i < size; i++)
+    private static void PrintSizeError(bool accepted)
+    {
+        if (!accepted)
         {
-            values[i] = random.Next(0, size * 10);
+            Console.Error.WriteLine("Ошибка: размер массива должен быть не меньше 2");
+        }
+    }
+
+    private static void RunBenchmark(int size)
+    {
+        int[] values = BuildRandomArray(size, DefaultSeed);
+        List<Measurement> measurements = MeasureAll(values);
+
+        PrintReport(measurements, size);
+    }
+
+    private static List<Measurement> MeasureAll(int[] values) => AddAll(new List<Measurement>(), values, SortCopy(values));
+
+    private static List<Measurement> AddAll(List<Measurement> measurements, int[] values, int[] reference)
+    {
+        Add(measurements, "вставки", insertionSort, values, reference);
+        Add(measurements, "слияние", mergeSort, values, reference);
+        Add(measurements, "быстрая", quickSort, values, reference);
+        Add(measurements, "Array.Sort", BuiltInSort, values, reference);
+
+        return measurements;
+    }
+
+    private static void Add(List<Measurement> measurements, string name, Func<int[], int[]> algorithm, int[] values, int[] reference) =>
+        measurements.Add(Measure(name, algorithm, values, reference));
+
+    private static int[] SortCopy(int[] values)
+    {
+        int[] copy = (int[])values.Clone();
+
+        Array.Sort(copy);
+
+        return copy;
+    }
+
+    private static int[] BuildRandomArray(int size, int seed) => Fill(new Random(seed), new int[size], 0);
+
+    private static int[] Fill(Random random, int[] values, int index)
+    {
+        if (index < values.Length)
+        {
+            values[index] = random.Next(0, values.Length * 10);
+            Fill(random, values, index + 1);
         }
 
         return values;
@@ -54,64 +84,78 @@ internal static class Program
     {
         int[] result = (int[])values.Clone();
 
-        for (int i = 1; i < result.Length; i++)
+        SortByInsertion(result, 1);
+
+        return result;
+    }
+
+    private static void SortByInsertion(int[] result, int index)
+    {
+        if (index < result.Length)
         {
-            int current = result[i];
-            int j = i - 1;
+            ShiftRight(result, index - 1, result[index]);
+            SortByInsertion(result, index + 1);
+        }
+    }
 
-            while (j >= 0 && result[j] > current)
-            {
-                result[j + 1] = result[j];
-                j--;
-            }
-
+    private static void ShiftRight(int[] result, int j, int current)
+    {
+        if (j >= 0 && result[j] > current)
+        {
+            result[j + 1] = result[j];
+            ShiftRight(result, j - 1, current);
+        }
+        else
+        {
             result[j + 1] = current;
         }
-
-        return result;
     }
 
-    private static int[] mergeSort(int[] values) => values.Length < 2 ? values : SortHalves(values);
+    private static int[] mergeSort(int[] values) => values.Length < 2 ? values : Merge(mergeSort(LeftHalf(values)), mergeSort(RightHalf(values)));
 
-    private static int[] SortHalves(int[] values)
+    private static int[] LeftHalf(int[] values) => values[..(values.Length / 2)];
+
+    private static int[] RightHalf(int[] values) => values[(values.Length / 2)..];
+
+    private static int[] Merge(int[] left, int[] right) => MergeInto(left, right, new int[left.Length + right.Length], 0, 0, 0);
+
+    private static int[] MergeInto(int[] left, int[] right, int[] result, int i, int j, int k)
     {
-        int middle = values.Length / 2;
-        int[] left = mergeSort(values[..middle]);
-        int[] right = mergeSort(values[middle..]);
+        int[] filled = CopyLeftovers(left, right, result, i, j, k);
 
-        return Merge(left, right);
+        return filled;
     }
 
-    private static int[] Merge(int[] left, int[] right)
+    private static int[] CopyLeftovers(int[] left, int[] right, int[] result, int i, int j, int k)
     {
-        int[] result = new int[left.Length + right.Length];
-        int i = 0;
-        int j = 0;
-        int k = 0;
+        int[] merged = i < left.Length && j < right.Length ? TakeSmaller(left, right, result, i, j, k) : AppendTail(left, right, result, i, j, k);
 
-        while (i < left.Length && j < right.Length)
+        return merged;
+    }
+
+    private static int[] TakeSmaller(int[] left, int[] right, int[] result, int i, int j, int k)
+    {
+        int taken = left[i] <= right[j] ? 0 : 1;
+
+        result[k] = taken == 0 ? left[i] : right[j];
+
+        return taken == 0 ? MergeInto(left, right, result, i + 1, j, k + 1) : MergeInto(left, right, result, i, j + 1, k + 1);
+    }
+
+    private static int[] AppendTail(int[] left, int[] right, int[] result, int i, int j, int k) =>
+        i < left.Length ? CopyFrom(left, result, i, k) : CopyFrom(right, result, j, k);
+
+    private static int[] CopyFrom(int[] source, int[] result, int index, int k)
+    {
+        int[] filled = result;
+
+        if (index < source.Length)
         {
-            if (left[i] <= right[j])
-            {
-                result[k++] = left[i++];
-            }
-            else
-            {
-                result[k++] = right[j++];
-            }
+            result[k] = source[index];
+            filled = CopyFrom(source, result, index + 1, k + 1);
         }
 
-        while (i < left.Length)
-        {
-            result[k++] = left[i++];
-        }
-
-        while (j < right.Length)
-        {
-            result[k++] = right[j++];
-        }
-
-        return result;
+        return filled;
     }
 
     private static int[] quickSort(int[] values)
@@ -124,33 +168,50 @@ internal static class Program
 
     private static void SortRange(int[] values, int low, int high)
     {
-        if (low >= high)
+        if (low < high)
         {
-            return;
-        }
+            int pivot = Partition(values, low, high);
 
-        int pivot = Partition(values, low, high);
-        SortRange(values, low, pivot - 1);
-        SortRange(values, pivot + 1, high);
+            SortRange(values, low, pivot - 1);
+            SortRange(values, pivot + 1, high);
+        }
     }
 
     private static int Partition(int[] values, int low, int high)
     {
-        int pivotValue = values[high];
-        int i = low - 1;
+        int boundary = PlaceLeft(values, low, high - 1, low - 1, values[high]);
 
-        for (int j = low; j < high; j++)
+        return SwapAndReturn(values, boundary + 1, high);
+    }
+
+    private static int PlaceLeft(int[] values, int low, int current, int boundary, int pivot)
+    {
+        int placed = boundary;
+
+        if (current >= low && values[current] <= pivot)
         {
-            if (values[j] <= pivotValue)
-            {
-                i++;
-                (values[i], values[j]) = (values[j], values[i]);
-            }
+            placed = PlaceLeft(values, Swap(values, boundary + 1, current) + 1, current + 1, boundary + 1, pivot);
+        }
+        else
+        {
+            placed = PlaceLeft(values, low, current + 1, boundary, pivot);
         }
 
-        (values[i + 1], values[high]) = (values[high], values[i + 1]);
+        return placed;
+    }
 
-        return i + 1;
+    private static int Swap(int[] values, int first, int second)
+    {
+        (values[first], values[second]) = (values[second], values[first]);
+
+        return first;
+    }
+
+    private static int SwapAndReturn(int[] values, int first, int second)
+    {
+        (values[first], values[second]) = (values[second], values[first]);
+
+        return first;
     }
 
     private static int[] BuiltInSort(int[] values)
@@ -159,21 +220,6 @@ internal static class Program
         Array.Sort(result);
 
         return result;
-    }
-
-    private static bool IsSorted(int[] values)
-    {
-        bool sorted = true;
-
-        for (int i = 1; i < values.Length; i++)
-        {
-            if (values[i - 1] > values[i])
-            {
-                sorted = false;
-            }
-        }
-
-        return sorted;
     }
 
     private static Measurement Measure(string name, Func<int[], int[]> algorithm, int[] values, int[] reference)
@@ -185,19 +231,10 @@ internal static class Program
         return new Measurement(name, stopwatch.Elapsed.TotalMilliseconds, AreEqual(result, reference));
     }
 
-    private static bool AreEqual(int[] left, int[] right)
-    {
-        bool equal = left.Length == right.Length;
-        int i = 0;
+    private static bool AreEqual(int[] left, int[] right) => left.Length == right.Length && AreEqualFrom(left, right, 0);
 
-        while (equal && i < left.Length)
-        {
-            equal = left[i] == right[i];
-            i++;
-        }
-
-        return equal;
-    }
+    private static bool AreEqualFrom(int[] left, int[] right, int index) =>
+        index >= left.Length || (left[index] == right[index] && AreEqualFrom(left, right, index + 1));
 
     private static void PrintReport(List<Measurement> measurements, int size)
     {
@@ -206,11 +243,13 @@ internal static class Program
         Console.WriteLine($"{"АЛГОРИТМ",-16} {"ВРЕМЯ, МС",12} {"КОРРЕКТНО",10}");
         Console.WriteLine(new string('-', 42));
 
-        foreach (Measurement measurement in measurements)
-        {
-            Console.WriteLine(
-                $"{measurement.Name,-16} {measurement.Milliseconds.ToString("F2", CultureInfo.InvariantCulture),12} {(measurement.IsCorrect ? "да" : "НЕТ"),10}");
-        }
+        measurements.ForEach(PrintMeasurement);
+    }
+
+    private static void PrintMeasurement(Measurement measurement)
+    {
+        Console.WriteLine(
+            $"{measurement.Name,-16} {measurement.Milliseconds.ToString("F2", CultureInfo.InvariantCulture),12} {(measurement.IsCorrect ? "да" : "НЕТ"),10}");
     }
 
     private sealed class Measurement

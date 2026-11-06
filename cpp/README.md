@@ -22,7 +22,7 @@ cmake --build build --config Release
 |--------|--------|------------------|
 | 01_text_stats | частота слов в UTF-8 тексте, топ-N | `lowercase_utf8`, `split_words`, `count_words`, `top_words` |
 | 02_csv_profiler | профиль колонок CSV | `detect_type`, `profile_column`, `fill_range`, `print_profiles` |
-| 03_rpn_calc | разбор выражения и вычисление через ОПЗ | `tokenize`, `to_rpn`, `evaluate_rpn`, `apply_operator` |
+| 03_rpn_calc | разбор выражения и вычисление через ОПЗ | `tokenize`, `to_rpn_checked`, `evaluate_rpn`, `apply_operator` |
 | 04_dq_checks | правила качества данных, контрольное число ИНН | `build_rules`, `run_checks`, `matches_ten_digit_checksum` |
 | 05_log_parser | статистика по логу, p50/p95 | `parse_line`, `aggregate`, `percentile`, `print_report` |
 | 06_sort_bench | три сортировки и замер через `chrono` | `insertion_sort`, `merge_sort`, `quick_sort`, `measure` |
