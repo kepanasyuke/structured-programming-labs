@@ -179,25 +179,33 @@ internal static class Program
 
     private static int Partition(int[] values, int low, int high)
     {
-        int boundary = PlaceLeft(values, low, high - 1, low - 1, values[high]);
+        int boundary = PlaceLeft(values, low, high, low - 1, values[high]);
 
         return SwapAndReturn(values, boundary + 1, high);
     }
 
-    private static int PlaceLeft(int[] values, int low, int current, int boundary, int pivot)
+    private static int PlaceLeft(int[] values, int low, int high, int boundary, int pivot)
     {
-        int placed = boundary;
-
-        if (current >= low && values[current] <= pivot)
+        int index = low;
+        while (index < high)
         {
-            placed = PlaceLeft(values, Swap(values, boundary + 1, current) + 1, current + 1, boundary + 1, pivot);
-        }
-        else
-        {
-            placed = PlaceLeft(values, low, current + 1, boundary, pivot);
+            boundary = StepLeft(values, index, boundary, pivot);
+            index++;
         }
 
-        return placed;
+        return boundary;
+    }
+
+    private static int StepLeft(int[] values, int index, int boundary, int pivot)
+    {
+        bool move = values[index] <= pivot;
+        int next = move ? boundary + 1 : boundary;
+        if (move)
+        {
+            (values[next], values[index]) = (values[index], values[next]);
+        }
+
+        return next;
     }
 
     private static int Swap(int[] values, int first, int second)

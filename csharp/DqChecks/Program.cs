@@ -187,7 +187,8 @@ internal static class Program
     private static string? CheckNotFutureDate(string value)
     {
         bool shaped = IsDateShape(value);
-        bool parsed = shaped && DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly date);
+        DateOnly date = DateOnly.MinValue;
+        bool parsed = shaped && DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
 
         return !shaped ? "значение не является датой" : !parsed ? "некорректная дата" : date <= Today() ? null : "дата в будущем";
     }

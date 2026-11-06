@@ -166,6 +166,8 @@ std::size_t partition(std::vector<int>& values, std::size_t low, std::size_t hig
     return border;
 }
 
+void quick_sort_range(std::vector<int>& values, std::size_t low, std::size_t high);
+
 void sort_higher(std::vector<int>& values, std::size_t pivot, std::size_t high) {
     if (pivot + 1 <= high) {
         quick_sort_range(values, pivot + 1, high);

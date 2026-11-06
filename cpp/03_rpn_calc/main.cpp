@@ -215,6 +215,9 @@ Conversion emit_operator(const std::string& token, std::stack<std::string>& oper
     return state;
 }
 
+Conversion route_token(const std::string& token, bool number, bool open, bool close, std::stack<std::string>& operators,
+                       Conversion state);
+
 bool is_known_token(const std::string& token) {
     return token == "(" || token == ")" || is_operator(token) || is_number(token);
 }
@@ -250,7 +253,7 @@ Conversion drain_step(std::stack<std::string>& operators, Conversion state) {
 }
 
 Conversion drain_operators(std::stack<std::string>& operators, Conversion state) {
-    for (; !operators.empty() && state.ok; drain_step(operators, state)) {
+    for (; !operators.empty() && state.ok; state = drain_step(operators, state)) {
     }
 
     return state;

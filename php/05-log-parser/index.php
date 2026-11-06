@@ -142,7 +142,7 @@ function base_summary(string $task, array $durations, array $statuses): array
 {
     $head = ['task' => $task, 'runs' => count($durations), 'avg' => average_duration($durations), 'max' => last_value($durations)];
 
-    return add_status_book(head, $statuses);
+    return add_status_book($head, $statuses);
 }
 
 function add_status_book(array $summary, array $statuses): array

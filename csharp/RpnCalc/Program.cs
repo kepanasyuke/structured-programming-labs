@@ -15,7 +15,8 @@ internal static class Program
     {
         string expression = args.Length > 0 ? args[0] : "(1240+8940)*2-1500/3";
         bool converted = TryToRpn(Tokenize(expression), out List<string> rpn, out string error);
-        bool evaluated = converted && TryEvaluate(rpn, out double value, out error);
+        double value = 0;
+        bool evaluated = converted && TryEvaluate(rpn, out value, out error);
         bool printed = evaluated && PrintResult(expression, rpn, value);
 
         PrintError(converted, evaluated, error);
@@ -230,14 +231,11 @@ internal static class Program
         return false;
     }
 
-    private static bool TryApply(string token, Stack<double> stack, out string error)
+    private static bool TryApply(string token, Stack<double> stack, string[] error)
     {
-        string[] box = { string.Empty };
         double right = stack.Pop();
         double left = stack.Pop();
-        bool valid = ApplyOperator(token, left, right, stack, box);
-
-        error = box[0];
+        bool valid = ApplyOperator(token, left, right, stack, error);
 
         return valid;
     }

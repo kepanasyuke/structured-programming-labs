@@ -43,7 +43,9 @@ internal static class Program
     private static bool TryParseRange(string fromText, string toText, out DateOnly from, out DateOnly to)
     {
         bool parsedFrom = TryParse(fromText, out from);
-        bool parsedTo = parsedFrom && TryParse(toText, out to);
+        DateOnly tail = DateOnly.MinValue;
+        bool parsedTo = parsedFrom && TryParse(toText, out tail);
+        to = tail;
 
         return parsedFrom && parsedTo;
     }

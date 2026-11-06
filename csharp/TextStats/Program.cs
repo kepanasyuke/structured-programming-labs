@@ -17,9 +17,9 @@ internal static class Program
     {
         string path = ResolvePath(args);
         bool loaded = TryReadText(path, out string text);
-        bool filtered = loaded ? TryFilterWords(text, path, out List<string> words) : false;
+        List<string> words = new();
+        bool filtered = loaded && TryFilterWords(text, path, out words);
         bool printed = filtered && PrintReport(path, text, words);
-
 
         return printed ? Report(path, loaded, filtered) : 1;
     }

@@ -106,11 +106,19 @@ void retreat_end(const std::string& value, std::size_t begin, std::size_t& end) 
     }
 }
 
+bool is_leading_blank(const std::string& value, std::size_t begin, std::size_t end) {
+    return begin < end && is_blank_at(value, begin);
+}
+
+bool is_trailing_blank(const std::string& value, std::size_t begin, std::size_t end) {
+    return end > begin && is_blank_at(value, end - 1);
+}
+
 std::string trim_range(const std::string& value, std::size_t begin, std::size_t end) {
-    for (; begin < end;) {
+    for (; is_leading_blank(value, begin, end);) {
         advance_begin(value, begin, end);
     }
-    for (; end > begin;) {
+    for (; is_trailing_blank(value, begin, end);) {
         retreat_end(value, begin, end);
     }
 

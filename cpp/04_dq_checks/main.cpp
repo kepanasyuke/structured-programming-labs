@@ -126,11 +126,19 @@ void retreat_end(const std::string& value, std::size_t begin, std::size_t& end) 
     }
 }
 
+bool is_leading_space(const std::string& value, std::size_t begin, std::size_t end) {
+    return begin < end && is_space_at(value, begin);
+}
+
+bool is_trailing_space(const std::string& value, std::size_t begin, std::size_t end) {
+    return end > begin && is_space_at(value, end - 1);
+}
+
 std::string trim_range(const std::string& value, std::size_t begin, std::size_t end) {
-    for (; begin < end;) {
+    for (; is_leading_space(value, begin, end);) {
         advance_begin(value, begin, end);
     }
-    for (; end > begin;) {
+    for (; is_trailing_space(value, begin, end);) {
         retreat_end(value, begin, end);
     }
 
@@ -148,17 +156,20 @@ std::string piece(const std::string& line, std::size_t start, std::size_t positi
     return trim(line.substr(start, length));
 }
 
-void split_step(const std::string& line, std::size_t& start, std::vector<std::string>& parts) {
+void split_step(const std::string& line, std::size_t& start, std::vector<std::string>& parts, bool& done) {
     const std::size_t position = line.find(kDelimiter, start);
     parts.push_back(piece(line, start, position));
     start = position + 1;
+    done = position == std::string::npos;
 }
 
 std::vector<std::string> split(const std::string& line) {
     std::vector<std::string> parts;
     std::size_t start = 0;
+    bool done = false;
 
-    for (; start <= line.size(); split_step(line, start, parts)) {
+    while (!done && start <= line.size() + 1) {
+        split_step(line, start, parts, done);
     }
 
     return parts;
@@ -338,7 +349,7 @@ bool is_date_shaped(const std::string& value) {
 void local_today(std::tm& today) {
     const std::time_t now = std::time(nullptr);
 
-#ifdef _MSC_VER
+#ifdef _WIN32
     localtime_s(&today, &now);
 #else
     localtime_r(&now, &today);

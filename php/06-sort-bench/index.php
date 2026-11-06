@@ -39,7 +39,7 @@ function shift_step(array $values, int $j, int $current): array
     $canShift = $j >= 0 && $values[$j] > $current;
     $next = $canShift ? shift_right($values, $j) : $values;
 
-    return ['values' => $next, 'j' => $j - 1, 'done' => !$canShift];
+    return ['values' => $next, 'j' => $canShift ? $j - 1 : $j, 'done' => !$canShift];
 }
 
 function insertion_pass(array $values, int $i, int $size): array
@@ -96,8 +96,11 @@ function merge_step(array $left, array $right, array $result, int $i, int $j): a
 {
     $takeLeft = $left[$i] <= $right[$j];
     $merged = $takeLeft ? take_left($result, $left, $i) : take_right($result, $right, $j);
+    $nextI = $i + ($takeLeft ? 1 : 0);
+    $nextJ = $j + ($takeLeft ? 0 : 1);
+    $done = $nextI >= count($left) || $nextJ >= count($right);
 
-    return ['result' => $merged, 'i' => $i + ($takeLeft ? 1 : 0), 'j' => $j + ($takeLeft ? 0 : 1), 'done' => false];
+    return ['result' => $merged, 'i' => $nextI, 'j' => $nextJ, 'done' => $done];
 }
 
 function merge(array $left, array $right): array
