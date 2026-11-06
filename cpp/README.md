@@ -2,6 +2,11 @@
 
 8 консольных программ на C++17. Сборка одной командой через CMake — все цели объявлены в `CMakeLists.txt`:
 
+<p align="center">
+  <img src="../docs/demo-sort.gif" alt="Сортировка вставками по шагам" width="640"><br>
+  <sub>Так выглядит структурный стиль в движении — <a href="https://kepanasyuke.github.io/structured-programming-labs/">живая объяснялка</a></sub>
+</p>
+
 ```bash
 cmake -S . -B build
 cmake --build build --config Release

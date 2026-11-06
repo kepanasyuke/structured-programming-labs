@@ -2,6 +2,11 @@
 
 8 консольных приложений на .NET 8. Каждый проект — отдельная папка с `Program.cs` и `.csproj`, запуск:
 
+<p align="center">
+  <img src="../docs/demo-sort.gif" alt="Сортировка вставками по шагам" width="640"><br>
+  <sub>Так выглядит структурный стиль в движении — <a href="https://kepanasyuke.github.io/structured-programming-labs/">живая объяснялка</a></sub>
+</p>
+
 ```bash
 dotnet run --project TextStats -- ../../data/sample.txt
 ```

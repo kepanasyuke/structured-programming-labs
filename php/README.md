@@ -2,6 +2,12 @@
 
 8 автономных консольных скриптов. Требуется PHP 8.1+ (нужны `mbstring` и функции `fgetcsv`, `array_multisort`).
 
+<p align="center">
+  <img src="../docs/demo-sort.gif" alt="Сортировка вставками по шагам" width="640"><br>
+  <sub>Так выглядит структурный стиль в движении — <a href="https://kepanasyuke.github.io/structured-programming-labs/">живая объяснялка</a></sub>
+</p>
+
+
 Каждый проект — папка с единственным файлом `index.php`, запуск:
 
 ```bash
