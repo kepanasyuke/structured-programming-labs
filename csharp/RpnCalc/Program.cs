@@ -11,9 +11,10 @@ internal static class Program
 
     private static readonly Regex TokenPattern = new(@"\d+[.,]?\d*|[+\-*/()]", RegexOptions.Compiled);
 
-    private static int Main(string[] args)
+    private static int Main(string[] args) => Run(args.Length > 0 ? args[0] : "(1240+8940)*2-1500/3");
+
+    private static int Run(string expression)
     {
-        string expression = args.Length > 0 ? args[0] : "(1240+8940)*2-1500/3";
         bool converted = TryToRpn(Tokenize(expression), out List<string> rpn, out string error);
         double value = 0;
         bool evaluated = converted && TryEvaluate(rpn, out value, out error);
