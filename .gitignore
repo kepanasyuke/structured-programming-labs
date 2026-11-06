@@ -1,0 +1,16 @@
+﻿# C#
+bin/
+obj/
+*.user
+
+# C++
+build/
+cmake-build-*/
+
+# редакторы и ОС
+.vs/
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
