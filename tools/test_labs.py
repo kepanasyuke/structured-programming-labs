@@ -74,19 +74,49 @@ def command_for(lang: str, task: str, args, php, build):
     return [str(exe)] + args
 
 
+def cyrillic_score(text: str) -> int:
+    return sum(1 for char in text if "\u0410" <= char <= "\u044f")
+
+
+def decode_console(raw: bytes) -> str:
+    """Программы пишут UTF-8, а консоль Windows иногда отдаёт cp866/cp1251.
+
+    Сначала пробуем строгий UTF-8: если байты валидны, это и есть правильный
+    текст. Иначе перебираем однобайтовые кодировки консоли и берём вариант
+    с наибольшим числом кириллических букв.
+    """
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+
+    best = raw.decode("utf-8", "replace")
+    best_score = cyrillic_score(best)
+
+    for encoding in ("cp866", "cp1251"):
+        try:
+            candidate = raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        score = cyrillic_score(candidate)
+        if score > best_score:
+            best, best_score = candidate, score
+
+    return best
+
+
 def run_case(lang, task, args, php, build, timeout=25):
     command = command_for(lang, task, args, php, build)
     environment = dict(os.environ)
     if lang == "cpp" and MINGW_BIN:
         environment["PATH"] = str(MINGW_BIN) + os.pathsep + environment.get("PATH", "")
     try:
-        result = subprocess.run(command, capture_output=True, timeout=timeout, text=True,
-                                encoding="utf-8", errors="replace", env=environment)
+        result = subprocess.run(command, capture_output=True, timeout=timeout, env=environment)
     except FileNotFoundError:
         return None, "", "binary not found"
     except subprocess.TimeoutExpired:
         return None, "", "timeout"
-    return result.returncode, result.stdout, result.stderr
+    return result.returncode, decode_console(result.stdout), decode_console(result.stderr)
 
 
 def main() -> int:

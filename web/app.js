@@ -4,6 +4,17 @@
 
   var state = { lang: "php", task: "rpn-calc", schema: null, busy: false };
 
+  var ICONS = {
+    "text-stats": '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/><path d="M5.8 7.4h4.4M5.8 9.6h4.4M5.8 11.8h2.8"/></svg>',
+    "csv-profiler": '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.2" y="3" width="11.6" height="10"/><path d="M2.2 6.2h11.6M6 3v10M10 3v10"/></svg>',
+    "rpn-calc": '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="1.8" width="10" height="12.4"/><path d="M5.4 4.6h5.2"/><path d="M5.6 7.8h.8M8 7.8h.8M10.4 7.8h.8M5.6 10.4h.8M8 10.4h.8M10.4 10.4h.8"/></svg>',
+    "dq-checks": '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 1.6l5 1.9v4.2c0 3-2 5.1-5 6.7-3-1.6-5-3.7-5-6.7V3.5z"/><path d="M5.6 7.8l1.7 1.7 3.1-3.4"/></svg>',
+    "log-parser": '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.6 3.6h10.8M2.6 6.4h10.8M2.6 9.2h7.8M2.6 12h5"/></svg>',
+    "sort-bench": '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3.4 13V9.2M6.4 13V6.4M9.4 13V3.8M12.4 13V7.4"/></svg>',
+    "date-periods": '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.2" y="3.2" width="11.6" height="10.2"/><path d="M2.2 6.2h11.6M5.4 1.8v2.6M10.6 1.8v2.6"/><path d="M5.8 8.8h1M8.2 8.8h1M10.6 8.8h1M5.8 11h1M8.2 11h1"/></svg>',
+    "moving-average": '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.2 2.4v11.2h11.6"/><path d="M3.6 10.6l2.6-3 2.2 1.8 3.6-5.2"/></svg>'
+  };
+
   var $ = function (id) { return document.getElementById(id); };
   var el = function (tag, cls, text) {
     var node = document.createElement(tag);
@@ -63,8 +74,16 @@
       var data = state.schema.tasks[task];
       var button = el("button", "task-btn" + (task === state.task ? " active" : ""));
       button.type = "button";
-      button.appendChild(el("span", "", data.title));
-      button.appendChild(el("small", "", task));
+
+      var icon = el("span", "task-icon");
+      icon.innerHTML = ICONS[task] || "";
+      button.appendChild(icon);
+
+      var text = el("span", "task-text");
+      text.appendChild(el("span", "task-title", data.title));
+      text.appendChild(el("small", "", task));
+      button.appendChild(text);
+
       button.addEventListener("click", function () {
         state.task = task;
         syncHash();
