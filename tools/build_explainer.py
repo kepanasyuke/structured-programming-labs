@@ -14,46 +14,15 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from style_check import find_functions, strip_code  # noqa: E402
 
-TASKS = [
-    (1, "text-stats", "Частотный анализ текста", "топ-N слов, стоп-слова"),
-    (2, "csv-profiler", "Профиль CSV", "типы, пустые значения, уникальность, min/max"),
-    (3, "rpn-calc", "Калькулятор ОПЗ", "выражение → обратная польская запись → результат"),
-    (4, "dq-checks", "Правила качества данных", "движок правил над CSV, отчёт нарушений"),
-    (5, "log-parser", "Разбор лога", "p50/p95/max по задачам, топ-5 по p95"),
-    (6, "sort-bench", "Три сортировки", "проверка корректности и замер времени"),
-    (7, "date-periods", "Отчётные периоды", "контроль пересечений и разрывов"),
-    (8, "moving-average", "Скользящее среднее", "сглаживание и выбросы по z-score"),
-]
+TASKS_FILE = Path(__file__).resolve().parent / "tasks.json"
+CONFIG = json.loads(TASKS_FILE.read_text(encoding="utf-8"))
+TASK_LIST = CONFIG["tasks"]
 
 SOURCES = {
-    "php": ("php/{}/index.php", "01-"),
-    "csharp": ("csharp/{}/Program.cs", None),
-    "cpp": ("cpp/{}/main.cpp", "_"),
+    "php": "php/{}/index.php",
+    "csharp": "csharp/{}/Program.cs",
+    "cpp": "cpp/{}/main.cpp",
 }
-
-CSHARP_DIRS = {
-    "text-stats": "TextStats",
-    "csv-profiler": "CsvProfiler",
-    "rpn-calc": "RpnCalc",
-    "dq-checks": "DqChecks",
-    "log-parser": "LogParser",
-    "sort-bench": "SortBench",
-    "date-periods": "DatePeriods",
-    "moving-average": "MovingAverage",
-}
-
-PHP_DIRS = {
-    "text-stats": "01-text-stats",
-    "csv-profiler": "02-csv-profiler",
-    "rpn-calc": "03-rpn-calc",
-    "dq-checks": "04-dq-checks",
-    "log-parser": "05-log-parser",
-    "sort-bench": "06-sort-bench",
-    "date-periods": "07-date-periods",
-    "moving-average": "08-moving-average",
-}
-
-CPP_DIRS = {task: "0%d_%s" % (number, task.replace("-", "_")) for number, task, _, _ in TASKS}
 
 
 def roles(name: str) -> str:
@@ -86,15 +55,10 @@ def functions_of(path: Path, lang: str):
 
 def build():
     projects = []
-    for number, task, title, purpose in TASKS:
+    for task in TASK_LIST:
         variants = {}
-        for lang in ("php", "csharp", "cpp"):
-            if lang == "php":
-                path = ROOT / "php" / PHP_DIRS[task] / "index.php"
-            elif lang == "csharp":
-                path = ROOT / "csharp" / CSHARP_DIRS[task] / "Program.cs"
-            else:
-                path = ROOT / "cpp" / CPP_DIRS[task] / "main.cpp"
+        for lang, template in SOURCES.items():
+            path = ROOT / template.format(task[lang])
             funcs, total = functions_of(path, lang)
             variants[lang] = {
                 "path": path.relative_to(ROOT).as_posix(),
@@ -103,10 +67,10 @@ def build():
                 "count": len(funcs),
             }
         projects.append({
-            "number": number,
-            "task": task,
-            "title": title,
-            "purpose": purpose,
+            "number": task["number"],
+            "task": task["id"],
+            "title": task["title"],
+            "purpose": task["purpose"],
             "variants": variants,
         })
 

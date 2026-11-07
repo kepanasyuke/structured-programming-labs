@@ -1,0 +1,131 @@
+{
+  "langs": [
+    ["php", "PHP"],
+    ["csharp", "C#"],
+    ["cpp", "C++"]
+  ],
+  "tasks": [
+    {
+      "id": "text-stats",
+      "number": 1,
+      "title": "Частотный анализ текста",
+      "purpose": "топ-N слов, стоп-слова",
+      "hint": "Вставь текст — программа посчитает символы, слова и топ-10 частот.",
+      "php": "01-text-stats",
+      "csharp": "TextStats",
+      "cs_exe": "text-stats",
+      "cpp": "01_text_stats",
+      "fields": [
+        {"name": "text", "label": "Текст", "kind": "textarea", "file": "sample.txt", "rows": 8,
+         "value": "Данные и данные: отчёт по данным. Клиент, клиент, клиент — база и запрос."},
+        {"name": "stopwords", "label": "Стоп-слова (по одному в строке)", "kind": "textarea",
+         "file": "stopwords.txt", "rows": 3, "value": "данные\nданных"}
+      ]
+    },
+    {
+      "id": "csv-profiler",
+      "number": 2,
+      "title": "Профиль CSV",
+      "purpose": "типы, пустые значения, уникальность, min/max",
+      "hint": "Таблица с разделителем «;». Программа покажет типы колонок, пустые значения, уникальность и min/max.",
+      "php": "02-csv-profiler",
+      "csharp": "CsvProfiler",
+      "cs_exe": "csv-profiler",
+      "cpp": "02_csv_profiler",
+      "fields": [
+        {"name": "csv", "label": "CSV", "kind": "textarea", "file": "profile.csv", "rows": 8,
+         "value": "client_id;amount;open_day;note\n1;1500.50;2020-01-31;МСБ\n2;;2021-05-17;Крупный\n3;980.00;2019-12-01;МСБ"}
+      ]
+    },
+    {
+      "id": "rpn-calc",
+      "number": 3,
+      "title": "Калькулятор ОПЗ",
+      "purpose": "выражение → обратная польская запись → результат",
+      "hint": "Выражение с + − × ÷ и скобками: программа покажет ОПЗ и результат.",
+      "php": "03-rpn-calc",
+      "csharp": "RpnCalc",
+      "cs_exe": "rpn-calc",
+      "cpp": "03_rpn_calc",
+      "fields": [
+        {"name": "expr", "label": "Выражение", "kind": "text", "value": "(1240+8940)*2-1500/3"}
+      ]
+    },
+    {
+      "id": "dq-checks",
+      "number": 4,
+      "title": "Правила качества данных",
+      "purpose": "движок правил над CSV, отчёт нарушений",
+      "hint": "CSV с дефектами: пустой client_id, кривой ИНН, минус в балансе, неизвестный статус, дата в будущем.",
+      "php": "04-dq-checks",
+      "csharp": "DqChecks",
+      "cs_exe": "dq-checks",
+      "cpp": "04_dq_checks",
+      "fields": [
+        {"name": "csv", "label": "CSV", "kind": "textarea", "file": "clients.csv", "rows": 8,
+         "value": "client_id;inn;name;segment;open_date;balance_rub;status\n1;7707083893;ООО Ромашка;МСБ;2019-04-12;158000.50;active\n2;7743013901;АО Вектор;Крупный;2018-01-30;;active\n;500100732259;ИП Смирнов;МСБ;2021-09-01;-3500.00;archived"}
+      ]
+    },
+    {
+      "id": "log-parser",
+      "number": 5,
+      "title": "Разбор лога",
+      "purpose": "p50/p95/max по задачам, топ-5 по p95",
+      "hint": "Строки вида: время | задача | длительность | статус.",
+      "php": "05-log-parser",
+      "csharp": "LogParser",
+      "cs_exe": "log-parser",
+      "cpp": "05_log_parser",
+      "fields": [
+        {"name": "log", "label": "Лог", "kind": "textarea", "file": "queries.log", "rows": 7,
+         "value": "2026-10-01T02:00:03Z | load_clients | 1240 ms | OK\n2026-10-01T02:10:11Z | load_accounts | 8940 ms | OK\n2026-10-01T02:20:45Z | build_client_mart | 21300 ms | WARN\n2026-10-01T02:35:02Z | dq_check_clients | 640 ms | FAIL"}
+      ]
+    },
+    {
+      "id": "sort-bench",
+      "number": 6,
+      "title": "Три сортировки",
+      "purpose": "проверка корректности и замер времени",
+      "hint": "Размер массива: программа проверит три алгоритма и замерит время.",
+      "php": "06-sort-bench",
+      "csharp": "SortBench",
+      "cs_exe": "sort-bench",
+      "cpp": "06_sort_bench",
+      "fields": [
+        {"name": "size", "label": "Размер массива", "kind": "number", "value": "2000", "min": 2, "max": 5000}
+      ]
+    },
+    {
+      "id": "date-periods",
+      "number": 7,
+      "title": "Отчётные периоды",
+      "purpose": "контроль пересечений и разрывов",
+      "hint": "Границы диапазона и шаг: месяц, квартал или год.",
+      "php": "07-date-periods",
+      "csharp": "DatePeriods",
+      "cs_exe": "date-periods",
+      "cpp": "07_date_periods",
+      "fields": [
+        {"name": "from", "label": "С даты", "kind": "text", "value": "2025-11-15"},
+        {"name": "to", "label": "По дату", "kind": "text", "value": "2026-06-30"},
+        {"name": "granularity", "label": "Шаг", "kind": "select", "value": "quarter",
+         "options": [["month", "месяц"], ["quarter", "квартал"], ["year", "год"]]}
+      ]
+    },
+    {
+      "id": "moving-average",
+      "number": 8,
+      "title": "Скользящее среднее",
+      "purpose": "сглаживание и выбросы по z-score",
+      "hint": "Ряд «период;значение»: программа сгладит его окном 3 и найдёт выбросы по z-score.",
+      "php": "08-moving-average",
+      "csharp": "MovingAverage",
+      "cs_exe": "moving-average",
+      "cpp": "08_moving_average",
+      "fields": [
+        {"name": "csv", "label": "CSV", "kind": "textarea", "file": "balance.csv", "rows": 8,
+         "value": "period;balance_rub\n2025-01-31;1240000\n2025-02-28;1285000\n2025-03-31;1255000\n2025-04-30;1310000\n2025-05-31;980000"}
+      ]
+    }
+  ]
+}

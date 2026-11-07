@@ -1371,7 +1371,7 @@ window.LABS = {
         },
         "cpp": {
           "path": "cpp/02_csv_profiler/main.cpp",
-          "lines": 555,
+          "lines": 556,
           "functions": [
             {
               "name": "strip_carriage_return",
@@ -1838,42 +1838,42 @@ window.LABS = {
             {
               "name": "print_profiles",
               "line": 513,
-              "size": 3,
+              "size": 4,
               "role": "печать"
             },
             {
               "name": "report_read_error",
-              "line": 519,
+              "line": 520,
               "size": 1,
               "role": "шаг"
             },
             {
               "name": "report_empty_table",
-              "line": 523,
+              "line": 524,
               "size": 1,
               "role": "шаг"
             },
             {
               "name": "fail_read",
-              "line": 527,
+              "line": 528,
               "size": 2,
               "role": "шаг"
             },
             {
               "name": "fail_empty",
-              "line": 533,
+              "line": 534,
               "size": 2,
               "role": "шаг"
             },
             {
               "name": "run",
-              "line": 539,
+              "line": 540,
               "size": 6,
               "role": "вход"
             },
             {
               "name": "main",
-              "line": 553,
+              "line": 554,
               "size": 1,
               "role": "вход"
             }
@@ -6505,7 +6505,7 @@ window.LABS = {
       "variants": {
         "php": {
           "path": "php/08-moving-average/index.php",
-          "lines": 274,
+          "lines": 276,
           "functions": [
             {
               "name": "file_is_readable",
@@ -6630,114 +6630,114 @@ window.LABS = {
             {
               "name": "build_bar",
               "line": 156,
-              "size": 1,
+              "size": 2,
               "role": "сборка"
             },
             {
               "name": "print_parameters",
-              "line": 161,
+              "line": 163,
               "size": 1,
               "role": "печать"
             },
             {
               "name": "print_table_head",
-              "line": 166,
+              "line": 168,
               "size": 1,
               "role": "печать"
             },
             {
               "name": "print_separator",
-              "line": 171,
+              "line": 173,
               "size": 1,
               "role": "печать"
             },
             {
               "name": "print_row",
-              "line": 176,
+              "line": 178,
               "size": 2,
               "role": "печать"
             },
             {
               "name": "row_score",
-              "line": 182,
+              "line": 184,
               "size": 1,
               "role": "шаг"
             },
             {
               "name": "row_mark",
-              "line": 187,
+              "line": 189,
               "size": 1,
               "role": "шаг"
             },
             {
               "name": "print_rows",
-              "line": 192,
+              "line": 194,
               "size": 2,
               "role": "печать"
             },
             {
               "name": "print_outlier_count",
-              "line": 199,
+              "line": 201,
               "size": 1,
               "role": "печать"
             },
             {
               "name": "print_series",
-              "line": 204,
+              "line": 206,
               "size": 5,
               "role": "печать"
             },
             {
               "name": "build_context",
-              "line": 213,
+              "line": 215,
               "size": 4,
               "role": "сборка"
             },
             {
               "name": "series_values",
-              "line": 222,
+              "line": 224,
               "size": 1,
               "role": "шаг"
             },
             {
               "name": "read_path",
-              "line": 227,
+              "line": 229,
               "size": 1,
               "role": "чтение"
             },
             {
               "name": "report_read_error",
-              "line": 232,
+              "line": 234,
               "size": 1,
               "role": "шаг"
             },
             {
               "name": "report_window_error",
-              "line": 237,
+              "line": 239,
               "size": 1,
               "role": "шаг"
             },
             {
               "name": "is_short_series",
-              "line": 242,
+              "line": 244,
               "size": 1,
               "role": "проверка"
             },
             {
               "name": "report_failure",
-              "line": 247,
+              "line": 249,
               "size": 4,
               "role": "шаг"
             },
             {
               "name": "main",
-              "line": 257,
+              "line": 259,
               "size": 5,
               "role": "вход"
             },
             {
               "name": "print_report",
-              "line": 267,
+              "line": 269,
               "size": 3,
               "role": "печать"
             }

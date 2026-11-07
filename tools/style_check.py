@@ -169,8 +169,6 @@ def check_function(name, body):
     outside = [pos for pos in returns if not in_spans(pos, spans)]
     if len(outside) > 1:
         issues.append(f"return ×{len(outside)} (нужен один)")
-    if len(outside) == 0 and len(returns) == 0 and "void" not in name:
-        pass
     if re.search(r"\bcontinue\b", cleaned):
         issues.append("continue")
     breaks = [m.start() for m in re.finditer(r"\bbreak\b", cleaned)]

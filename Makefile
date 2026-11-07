@@ -3,11 +3,12 @@ PORT ?= 8765
 
 .DEFAULT_GOAL := help
 
-.PHONY: help run serve gifs pages check test quick build clean
+.PHONY: help run dev serve gifs pages check test quick build clean
 
 help:
 	@echo "24 учебных проекта — что можно сделать:"
-	@echo "  make run     собрать, поднять интерфейс и открыть браузер"
+	@echo "  make dev     сразу открыть интерфейс (без сборки и GIF)"
+	@echo "  make run     собрать, перерисовать GIF, поднять интерфейс и открыть браузер"
 	@echo "  make serve   поднять интерфейс без открытия браузера"
 	@echo "  make gifs    перерисовать GIF-демо для README"
 	@echo "  make pages   пересобрать карту функций для объяснялки"
@@ -17,10 +18,13 @@ help:
 	@echo "  make build   собрать C# и C++"
 	@echo "  make clean   удалить артефакты сборки"
 
+dev:
+	$(PYTHON) tools/serve.py --open --port $(PORT)
+
 run: build gifs
 	$(PYTHON) tools/serve.py --open --port $(PORT)
 
-serve: build
+serve:
 	$(PYTHON) tools/serve.py --port $(PORT)
 
 gifs:

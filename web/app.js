@@ -12,39 +12,6 @@
     return node;
   };
 
-  var SOURCE = {
-    php: {
-      "text-stats": "php/01-text-stats/index.php",
-      "csv-profiler": "php/02-csv-profiler/index.php",
-      "rpn-calc": "php/03-rpn-calc/index.php",
-      "dq-checks": "php/04-dq-checks/index.php",
-      "log-parser": "php/05-log-parser/index.php",
-      "sort-bench": "php/06-sort-bench/index.php",
-      "date-periods": "php/07-date-periods/index.php",
-      "moving-average": "php/08-moving-average/index.php"
-    },
-    csharp: {
-      "text-stats": "csharp/TextStats/Program.cs",
-      "csv-profiler": "csharp/CsvProfiler/Program.cs",
-      "rpn-calc": "csharp/RpnCalc/Program.cs",
-      "dq-checks": "csharp/DqChecks/Program.cs",
-      "log-parser": "csharp/LogParser/Program.cs",
-      "sort-bench": "csharp/SortBench/Program.cs",
-      "date-periods": "csharp/DatePeriods/Program.cs",
-      "moving-average": "csharp/MovingAverage/Program.cs"
-    },
-    cpp: {
-      "text-stats": "cpp/01_text_stats/main.cpp",
-      "csv-profiler": "cpp/02_csv_profiler/main.cpp",
-      "rpn-calc": "cpp/03_rpn_calc/main.cpp",
-      "dq-checks": "cpp/04_dq_checks/main.cpp",
-      "log-parser": "cpp/05_log_parser/main.cpp",
-      "sort-bench": "cpp/06_sort_bench/main.cpp",
-      "date-periods": "cpp/07_date_periods/main.cpp",
-      "moving-average": "cpp/08_moving_average/main.cpp"
-    }
-  };
-
   function taskTitle(task) {
     return state.schema.tasks[task].title;
   }
@@ -123,7 +90,7 @@
     var data = state.schema.tasks[state.task];
     $("task-title").textContent = data.title;
     $("task-hint").textContent = data.hint;
-    $("task-path").textContent = SOURCE[state.lang][state.task] + " · " + state.lang;
+    $("task-path").textContent = state.schema.paths[state.lang][state.task] + " · " + state.lang;
 
     var form = $("form");
     form.innerHTML = "";

@@ -10,7 +10,6 @@
     return node;
   };
   var pad = function (value) { return value < 10 ? "0" + value : String(value); };
-  var clamp = function (value, low, high) { return Math.max(low, Math.min(high, value)); };
 
   /* ================= вкладки ================= */
 
@@ -825,7 +824,6 @@
   };
 
   $("g1-reset").addEventListener("click", g1Reset);
-  $("g2-options").addEventListener("click", function () { });
 
   /* запуск */
   showMode("opz");
