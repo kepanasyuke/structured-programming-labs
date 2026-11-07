@@ -27,6 +27,68 @@
     return state.schema.tasks[task].title;
   }
 
+  /* ---------- окно, диалоги, тосты ---------- */
+
+  function openDialog(options) {
+    var overlay = $("overlay");
+    $("dialog-title").textContent = options.title || "";
+
+    var body = $("dialog-body");
+    body.innerHTML = "";
+    (options.text || []).forEach(function (chunk) {
+      var paragraph = document.createElement("p");
+      if (chunk && chunk.html) {
+        paragraph.innerHTML = chunk.html;
+      } else {
+        paragraph.textContent = String(chunk);
+      }
+      body.appendChild(paragraph);
+    });
+
+    var actions = $("dialog-actions");
+    actions.innerHTML = "";
+    (options.buttons || [{ label: "OK", kind: "primary" }]).forEach(function (item) {
+      var button = el("button", item.kind === "primary" ? "primary" : "secondary", item.label);
+      button.type = "button";
+      button.addEventListener("click", function () {
+        closeDialog();
+        if (item.action) { item.action(); }
+      });
+      actions.appendChild(button);
+    });
+
+    overlay.hidden = false;
+    var first = actions.querySelector("button");
+    if (first) { first.focus(); }
+  }
+
+  function closeDialog() {
+    $("overlay").hidden = true;
+  }
+
+  function toast(title, text, kind) {
+    var box = el("div", "toast" + (kind ? " " + kind : ""));
+    box.appendChild(el("span", "toast-title", title));
+    if (text) { box.appendChild(el("span", "toast-text", text)); }
+    $("toasts").appendChild(box);
+    setTimeout(function () {
+      if (box.parentNode) { box.parentNode.removeChild(box); }
+    }, 4200);
+  }
+
+  function showAbout() {
+    openDialog({
+      title: "О программе",
+      text: [
+        "24 учебные программы на PHP, C# и C++ — запуск из браузера без консоли.",
+        { html: "Сервер: <code>tools/serve.py</code>, список задач — <code>tools/tasks.json</code>." },
+        { html: "Остановить: <code>Ctrl+C</code> в окне сервера или <code>make serve</code> закрыть." },
+        "Объяснялка с анимациями и картой функций — по ссылке в шапке."
+      ],
+      buttons: [{ label: "Закрыть", kind: "primary" }]
+    });
+  }
+
   function readHash() {
     var parts = (location.hash || "").replace(/^#\/?/, "").split("/");
 
@@ -34,6 +96,11 @@
   }
 
   function applyHash() {
+    if (location.hash === "#about") {
+      showAbout();
+      return;
+    }
+
     var parts = readHash();
     if (!parts || !state.schema) { return; }
     if (!state.schema.paths[parts[0]] || !state.schema.tasks[parts[1]]) { return; }
@@ -214,14 +281,19 @@
       .then(function (result) {
         if (result.error) {
           $("status").textContent = result.error;
+          toast("Не запустилось", result.error, "bad");
           return;
         }
         showResult(result);
         pushHistory(taskTitle(state.task), result);
         $("status").textContent = "";
+        toast(result.code === 0 ? "Готово" : "Код возврата " + result.code,
+          taskTitle(state.task) + " · " + result.ms + " мс",
+          result.code === 0 ? "ok" : "bad");
       })
       .catch(function (error) {
         $("status").textContent = "сеть: " + error.message;
+        toast("Сеть недоступна", error.message, "bad");
       })
       .finally(function () {
         state.busy = false;
@@ -230,12 +302,64 @@
   }
 
   function reset() {
-    renderForm();
-    $("status").textContent = "";
+    openDialog({
+      title: "Сбросить поля?",
+      text: ["Вернутся значения по умолчанию для этой программы."],
+      buttons: [
+        { label: "Отмена", kind: "secondary" },
+        {
+          label: "Сбросить", kind: "primary", action: function () {
+            renderForm();
+            $("status").textContent = "";
+            toast("Поля сброшены", taskTitle(state.task), "");
+          }
+        }
+      ]
+    });
   }
 
   $("run").addEventListener("click", run);
   $("reset").addEventListener("click", reset);
+  $("about").addEventListener("click", showAbout);
+
+  $("form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    run();
+  });
+
+  $("win-min").addEventListener("click", function () {
+    $("window").classList.toggle("minimized");
+  });
+
+  $("win-max").addEventListener("click", function () {
+    $("window").classList.toggle("maximized");
+  });
+
+  $("win-close").addEventListener("click", function () {
+    openDialog({
+      title: "Закрыть окно?",
+      text: [
+        "Вкладку браузера страница закрыть не может — это делает сам браузер.",
+        { html: "Сервер останавливается в своём окне: <code>Ctrl+C</code>." }
+      ],
+      buttons: [
+        { label: "Отмена", kind: "secondary" },
+        {
+          label: "Свернуть окно", kind: "primary", action: function () {
+            $("window").classList.add("minimized");
+          }
+        }
+      ]
+    });
+  });
+
+  $("overlay").addEventListener("click", function (event) {
+    if (event.target === $("overlay")) { closeDialog(); }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !$("overlay").hidden) { closeDialog(); }
+  });
 
   fetch("/api/schema")
     .then(function (response) { return response.json(); })
@@ -249,6 +373,7 @@
     })
     .catch(function (error) {
       $("status").textContent = "не удалось загрузить схему: " + error.message;
+      toast("Схема не загрузилась", error.message, "bad");
     });
 
   window.addEventListener("hashchange", function () {

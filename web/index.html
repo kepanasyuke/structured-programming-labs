@@ -7,64 +7,93 @@
 <link rel="stylesheet" href="/web/style.css">
 </head>
 <body>
-<header class="top">
-  <div class="brand">
-    <span class="logo">&gt;_</span>
-    <div>
-      <h1>24 программы: запуск из браузера</h1>
-      <p>PHP · C# · C++ — один и тот же контракт: аргументы, вывод, код возврата</p>
+<div class="desktop">
+  <div class="window" id="window">
+    <div class="titlebar" id="titlebar">
+      <div class="titlebar-left">
+        <button class="titlebar-icon" id="about" title="О программе" aria-label="О программе">&gt;_</button>
+        <span class="titlebar-title" id="titlebar-title">24 программы — запуск в браузере</span>
+      </div>
+      <div class="titlebar-controls">
+        <button class="win-btn" id="win-min" title="Свернуть" aria-label="Свернуть">&#xE921;</button>
+        <button class="win-btn" id="win-max" title="Развернуть" aria-label="Развернуть">&#xE922;</button>
+        <button class="win-btn win-close" id="win-close" title="Закрыть" aria-label="Закрыть">&#xE8BB;</button>
+      </div>
+    </div>
+
+    <div class="window-body">
+      <div class="appbar">
+        <div class="brand">
+          <div>
+            <h1>Запуск программ без консоли</h1>
+            <p>PHP · C# · C++ — один контракт: аргументы, вывод, код возврата</p>
+          </div>
+        </div>
+        <div class="links">
+          <a href="/docs/index.html">объяснялка</a>
+          <a href="https://github.com/kepanasyuke/structured-programming-labs">репозиторий</a>
+        </div>
+      </div>
+
+      <main class="layout">
+        <aside class="sidebar">
+          <div class="langs" id="langs"></div>
+          <nav class="tasks" id="tasks"></nav>
+        </aside>
+
+        <section class="work">
+          <div class="work-head">
+            <h2 id="task-title">Выбери программу</h2>
+            <p id="task-hint" class="hint"></p>
+            <p id="task-path" class="path"></p>
+          </div>
+
+          <form id="form" class="form" autocomplete="off"></form>
+
+          <div class="run-row">
+            <button id="run" class="primary" type="button">Запустить</button>
+            <button id="reset" class="secondary" type="button">Сброс</button>
+            <span id="status" class="note"></span>
+          </div>
+
+          <div class="output">
+            <div class="output-head">
+              <span>stdout</span>
+              <span id="meta" class="note"></span>
+            </div>
+            <pre id="stdout" class="code"></pre>
+            <div class="output-head" id="stderr-head" hidden>
+              <span>stderr</span>
+            </div>
+            <pre id="stderr" class="code error" hidden></pre>
+          </div>
+
+          <div class="history">
+            <h3>Последние запуски</h3>
+            <ul id="history" class="history-list"></ul>
+          </div>
+        </section>
+      </main>
+
+      <footer class="foot">
+        <span>Сервер: <code>python tools/serve.py --open</code> или <code>make dev</code></span>
+        <span>Тесты: <code>make test</code></span>
+      </footer>
     </div>
   </div>
-  <div class="links">
-    <a href="/docs/index.html">объяснялка</a>
-    <a href="https://github.com/kepanasyuke/structured-programming-labs">репозиторий</a>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+    <div class="dialog-head">
+      <span class="dialog-title" id="dialog-title"></span>
+    </div>
+    <div class="dialog-body" id="dialog-body"></div>
+    <div class="dialog-actions" id="dialog-actions"></div>
   </div>
-</header>
+</div>
 
-<main class="layout">
-  <aside class="sidebar">
-    <div class="langs" id="langs"></div>
-    <nav class="tasks" id="tasks"></nav>
-  </aside>
-
-  <section class="work">
-    <div class="work-head">
-      <h2 id="task-title">Выбери программу</h2>
-      <p id="task-hint" class="hint"></p>
-      <p id="task-path" class="path"></p>
-    </div>
-
-    <form id="form" class="form" autocomplete="off"></form>
-
-    <div class="run-row">
-      <button id="run" class="primary" type="button">Запустить</button>
-      <button id="reset" type="button">Сброс</button>
-      <span id="status" class="note"></span>
-    </div>
-
-    <div class="output">
-      <div class="output-head">
-        <span>stdout</span>
-        <span id="meta" class="note"></span>
-      </div>
-      <pre id="stdout" class="code"></pre>
-      <div class="output-head" id="stderr-head" hidden>
-        <span>stderr</span>
-      </div>
-      <pre id="stderr" class="code error" hidden></pre>
-    </div>
-
-    <div class="history">
-      <h3>Последние запуски</h3>
-      <ul id="history" class="history-list"></ul>
-    </div>
-  </section>
-</main>
-
-<footer class="foot">
-  <span>Сервер: <code>python tools/serve.py --open</code> или <code>make run</code></span>
-  <span>Тесты: <code>make test</code></span>
-</footer>
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
 <script src="/web/app.js"></script>
 </body>

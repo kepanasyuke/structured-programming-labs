@@ -1,10 +1,11 @@
 :root {
-  --bg: #f3f3f3;
+  --desktop: #eef2f7;
   --surface: #ffffff;
   --surface-alt: #faf9f8;
   --surface-hover: #f2f2f2;
   --border: #e1e1e1;
   --border-strong: #d1d1d1;
+  --titlebar: #ffffff;
   --text: #1a1a1a;
   --text-2: #605e5c;
   --accent: #0078d7;
@@ -15,6 +16,7 @@
   --ok: #107c10;
   --warn: #b7472a;
   --bad: #d13438;
+  --bad-soft: #fde7e9;
   --terminal: #0c0c0c;
   --terminal-text: #cccccc;
   --mono: "Cascadia Mono", "Consolas", "Courier New", monospace;
@@ -27,7 +29,7 @@
 html, body { margin: 0; padding: 0; }
 
 body {
-  background: var(--bg);
+  background: var(--desktop);
   color: var(--text);
   font: 14px/1.45 "Segoe UI", "Segoe UI Variable Text", system-ui, -apple-system, sans-serif;
   min-height: 100vh;
@@ -36,32 +38,107 @@ body {
 
 code, pre { font-family: var(--mono); }
 
-/* ---------- верхняя панель ---------- */
+/* ---------- окно как в Windows 10 ---------- */
 
-.top {
+.desktop {
+  min-height: 100vh;
+  padding: 24px 20px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 52px;
-  padding: 8px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  justify-content: center;
+  align-items: flex-start;
 }
 
-.brand { display: flex; gap: 12px; align-items: center; }
+.window {
+  width: 100%;
+  max-width: 1280px;
+  background: var(--surface);
+  border: 1px solid #c9c9c9;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .14), 0 1px 3px rgba(0, 0, 0, .08);
+  display: flex;
+  flex-direction: column;
+}
 
-.logo {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
+.window.maximized {
+  position: fixed;
+  inset: 0;
+  max-width: none;
+  width: 100%;
+  height: 100vh;
+  border: 0;
+  box-shadow: none;
+  z-index: 20;
+}
+
+.window.maximized .window-body { height: calc(100vh - 32px); overflow: auto; }
+
+.window.minimized .window-body { display: none; }
+
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  background: var(--titlebar);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.titlebar-left { display: flex; align-items: center; gap: 8px; padding-left: 8px; min-width: 0; }
+
+.titlebar-icon {
+  width: 24px;
+  height: 24px;
+  border: 0;
   background: var(--accent);
   color: #fff;
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.titlebar-title {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titlebar-controls { display: flex; height: 100%; }
+
+.win-btn {
+  width: 46px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: "Segoe MDL2 Assets", "Segoe UI Symbol", sans-serif;
+  font-size: 10px;
+  line-height: 32px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.win-btn:hover { background: #e5e5e5; }
+.win-btn:active { background: #cccccc; }
+.win-btn.win-close:hover { background: #e81123; color: #fff; }
+.win-btn.win-close:active { background: #f1707a; }
+
+.window-body { display: flex; flex-direction: column; min-height: 0; }
+
+/* ---------- шапка приложения ---------- */
+
+.appbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
 }
 
 h1 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
@@ -77,7 +154,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
   display: grid;
   grid-template-columns: 268px minmax(0, 1fr);
   gap: 12px;
-  padding: 12px 20px 16px;
+  padding: 12px 20px 8px;
   align-items: start;
 }
 
@@ -109,11 +186,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
 
 .lang-btn:last-child { border-right: 0; }
 .lang-btn:hover { background: var(--surface-hover); }
-
-.lang-btn.active {
-  background: var(--accent);
-  color: #fff;
-}
+.lang-btn.active { background: var(--accent); color: #fff; }
 
 .tasks { display: flex; flex-direction: column; }
 
@@ -153,8 +226,6 @@ h1 { font-size: 15px; font-weight: 600; margin: 0 0 2px; }
 .task-text { display: flex; flex-direction: column; min-width: 0; }
 .task-title { font-size: 13px; line-height: 1.3; }
 .task-btn small { color: var(--text-2); font-size: 11px; font-family: var(--mono); }
-
-.task-btn.active .task-icon { color: var(--accent); }
 
 /* ---------- рабочая область ---------- */
 
@@ -271,7 +342,7 @@ button.secondary:hover { background: var(--surface-hover); }
 }
 
 .code.error {
-  background: #fde7e9;
+  background: var(--bad-soft);
   color: #a4262c;
   border: 1px solid #f3b8bb;
 }
@@ -327,14 +398,134 @@ button.secondary:hover { background: var(--surface-hover); }
   display: flex;
   gap: 18px;
   flex-wrap: wrap;
-  padding: 0 20px 18px;
+  padding: 8px 20px 14px;
   color: var(--text-2);
   font-size: 12px;
 }
 
+/* ---------- диалог в стиле Windows 10 ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+  z-index: 40;
+}
+
+.dialog {
+  width: min(460px, calc(100vw - 32px));
+  background: var(--surface);
+  border: 1px solid #c9c9c9;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .24);
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog-head {
+  padding: 18px 20px 6px;
+}
+
+.dialog-title {
+  font-size: 20px;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.dialog-body {
+  padding: 2px 20px 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.dialog-body p { margin: 0 0 8px; }
+.dialog-body p:last-child { margin-bottom: 0; }
+.dialog-body code {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  font-size: 12px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 20px 18px;
+}
+
+.dialog-actions button {
+  min-width: 92px;
+  min-height: 32px;
+  border-radius: 2px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dialog-actions button.primary {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+
+.dialog-actions button.primary:hover { background: var(--accent-hover); }
+
+.dialog-actions button.secondary {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+
+.dialog-actions button.secondary:hover { background: var(--surface-hover); }
+
+/* ---------- тосты ---------- */
+
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  min-width: 260px;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text);
+  animation: toast-in .18s ease-out;
+}
+
+.toast.ok { border-left-color: var(--ok); }
+.toast.bad { border-left-color: var(--bad); }
+.toast .toast-title { font-weight: 600; display: block; margin-bottom: 2px; }
+.toast .toast-text { color: var(--text-2); font-size: 12px; }
+
+@keyframes toast-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 @media (max-width: 900px) {
+  .desktop { padding: 0; }
+  .window { border: 0; box-shadow: none; }
   .layout { grid-template-columns: 1fr; padding: 10px 12px; }
   .sidebar { position: static; }
-  .top { padding: 8px 12px; }
+  .appbar { padding: 10px 12px; }
   .work { padding: 14px; }
 }
