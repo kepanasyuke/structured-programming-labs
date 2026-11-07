@@ -3,8 +3,13 @@
 8 консольных программ на C++17. Сборка одной командой через CMake — все цели объявлены в `CMakeLists.txt`:
 
 <p align="center">
-  <img src="../docs/demo-sort.gif" alt="Сортировка вставками по шагам" width="640"><br>
-  <sub>Так выглядит структурный стиль в движении — <a href="https://kepanasyuke.github.io/structured-programming-labs/">живая объяснялка</a></sub>
+  <img src="../docs/demo-sort-cpp.gif" alt="Сортировка вставками: insertion_sort, shift_step, shift_right" width="640"><br>
+  <sub>C++-версия: <code>insert_item</code> → <code>shift_step</code> → <code>shift_right</code></sub>
+</p>
+
+<p align="center">
+  <img src="../docs/demo-opz-cpp.gif" alt="Шаги ОПЗ: tokenize, convert_token, evaluate_rpn" width="640"><br>
+  <sub>C++-версия: <code>tokenize</code> → <code>convert_token</code> → <code>evaluate_rpn</code></sub>
 </p>
 
 ```bash

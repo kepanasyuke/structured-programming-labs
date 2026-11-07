@@ -3,8 +3,13 @@
 8 консольных приложений на .NET 8. Каждый проект — отдельная папка с `Program.cs` и `.csproj`, запуск:
 
 <p align="center">
-  <img src="../docs/demo-sort.gif" alt="Сортировка вставками по шагам" width="640"><br>
-  <sub>Так выглядит структурный стиль в движении — <a href="https://kepanasyuke.github.io/structured-programming-labs/">живая объяснялка</a></sub>
+  <img src="../docs/demo-sort-csharp.gif" alt="Сортировка вставками: insertionSort, SortByInsertion, ShiftRight" width="640"><br>
+  <sub>C#-версия: <code>insertionSort</code> → <code>SortByInsertion</code> → <code>ShiftRight</code></sub>
+</p>
+
+<p align="center">
+  <img src="../docs/demo-opz-csharp.gif" alt="Шаги ОПЗ: Tokenize, TryToRpn, TryEvaluate" width="640"><br>
+  <sub>C#-версия: <code>Tokenize</code> → <code>TryToRpn</code> → <code>TryEvaluate</code></sub>
 </p>
 
 ```bash

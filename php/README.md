@@ -3,8 +3,13 @@
 8 автономных консольных скриптов. Требуется PHP 8.1+ (нужны `mbstring` и функции `fgetcsv`, `array_multisort`).
 
 <p align="center">
-  <img src="../docs/demo-sort.gif" alt="Сортировка вставками по шагам" width="640"><br>
-  <sub>Так выглядит структурный стиль в движении — <a href="https://kepanasyuke.github.io/structured-programming-labs/">живая объяснялка</a></sub>
+  <img src="../docs/demo-sort-php.gif" alt="Сортировка вставками: insert_item, shift_step, shift_right" width="640"><br>
+  <sub>PHP-версия: <code>insert_item</code> → <code>shift_step</code> → <code>shift_right</code></sub>
+</p>
+
+<p align="center">
+  <img src="../docs/demo-opz-php.gif" alt="Шаги ОПЗ: tokenize, to_rpn, evaluate_rpn" width="640"><br>
+  <sub>PHP-версия: <code>tokenize</code> → <code>to_rpn</code> → <code>evaluate_rpn</code></sub>
 </p>
 
 
