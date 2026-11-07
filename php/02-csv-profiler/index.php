@@ -177,7 +177,7 @@ function pick_type(array $filled): string
 
 function numeric_type(array $filled): string
 {
-    return is_all_int($filled) ? 'int' : 'float';
+    return is_all_numeric($filled) ? (is_all_int($filled) ? 'int' : 'float') : 'string';
 }
 
 function is_date_kind(string $type, array $filled): bool

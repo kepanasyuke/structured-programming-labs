@@ -512,6 +512,7 @@ void print_profiles_block(const std::vector<ColumnProfile>& profiles) {
 
 void print_profiles(const std::string& path, const std::vector<ColumnProfile>& profiles) {
     print_caption(path);
+    print_columns(profiles.size());
     print_header();
     print_profiles_block(profiles);
 }

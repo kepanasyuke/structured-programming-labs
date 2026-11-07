@@ -154,7 +154,9 @@ function find_outliers(array $values, float $threshold): array
 
 function build_bar(float $value, float $maximum): string
 {
-    return $maximum <= 0 ? '' : str_repeat(BAR_SYMBOL, (int) round(BAR_WIDTH * $value / $maximum));
+    $length = $maximum <= 0 ? 0 : (int) round(BAR_WIDTH * $value / $maximum);
+
+    return str_repeat(BAR_SYMBOL, max(0, $length));
 }
 
 function print_parameters(): void
