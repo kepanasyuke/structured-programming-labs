@@ -16,6 +16,28 @@
     return state.schema.tasks[task].title;
   }
 
+  function readHash() {
+    var parts = (location.hash || "").replace(/^#\/?/, "").split("/");
+
+    return parts.length === 2 ? parts : null;
+  }
+
+  function applyHash() {
+    var parts = readHash();
+    if (!parts || !state.schema) { return; }
+    if (!state.schema.paths[parts[0]] || !state.schema.tasks[parts[1]]) { return; }
+
+    state.lang = parts[0];
+    state.task = parts[1];
+  }
+
+  function syncHash() {
+    var hash = "#" + state.lang + "/" + state.task;
+    if (location.hash !== hash) {
+      history.replaceState(null, "", hash);
+    }
+  }
+
   function renderLangs() {
     var box = $("langs");
     box.innerHTML = "";
@@ -25,6 +47,7 @@
       button.type = "button";
       button.addEventListener("click", function () {
         state.lang = pair[0];
+        syncHash();
         renderLangs();
         renderForm();
       });
@@ -44,6 +67,7 @@
       button.appendChild(el("small", "", task));
       button.addEventListener("click", function () {
         state.task = task;
+        syncHash();
         renderTasks();
         renderForm();
       });
@@ -53,7 +77,10 @@
 
   function fieldNode(field) {
     var wrap = el("div", "field");
-    var label = el("label", "", field.label);
+    var id = "field-" + field.name;
+    var label = el("label", "field-label", field.label);
+    label.htmlFor = id;
+
     var control;
 
     if (field.kind === "textarea") {
@@ -79,9 +106,11 @@
       control.value = field.value || "";
     }
 
+    control.id = id;
     control.dataset.name = field.name;
-    label.appendChild(control);
+
     wrap.appendChild(label);
+    wrap.appendChild(control);
 
     return wrap;
   }
@@ -193,11 +222,20 @@
     .then(function (response) { return response.json(); })
     .then(function (schema) {
       state.schema = schema;
+      applyHash();
       renderLangs();
       renderTasks();
       renderForm();
+      syncHash();
     })
     .catch(function (error) {
       $("status").textContent = "не удалось загрузить схему: " + error.message;
     });
+
+  window.addEventListener("hashchange", function () {
+    applyHash();
+    renderLangs();
+    renderTasks();
+    renderForm();
+  });
 })();
